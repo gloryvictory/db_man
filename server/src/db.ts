@@ -703,3 +703,116 @@ export async function reindexDatabase(connId: string, db: string): Promise<void>
   const pool = getPool(connId, db);
   await q(pool, { connId, db }, `REINDEX DATABASE ${quote(db)}`);
 }
+
+// ---------- уровень схемы ----------
+
+export interface SchemaInfo {
+  name: string;
+  owner: string;
+  table_count: number;
+  index_count: number;
+  total_size: string;
+  total_size_bytes: number;
+  tables_size: string;
+  indexes_size: string;
+  toast_size: string;
+}
+
+export interface SchemaTableRow {
+  name: string;
+  kind: string;
+  column_count: number;
+  row_estimate: number;
+  table_size: number;
+  indexes_size: number;
+  total_size: number;
+  last_vacuum: string | null;
+  last_analyze: string | null;
+}
+
+export async function getSchemaInfo(connId: string, db: string, schema: string): Promise<SchemaInfo> {
+  assertIdent(schema);
+  const pool = getPool(connId, db);
+
+  const meta = await q(
+    pool,
+    { connId, db },
+    `SELECT n.nspname AS name, r.rolname AS owner
+     FROM pg_namespace n
+     JOIN pg_roles r ON r.oid = n.nspowner
+     WHERE n.nspname = $1`,
+    [schema]
+  );
+
+  const agg = await q(
+    pool,
+    { connId, db },
+    `SELECT
+       count(*) AS table_count,
+       (SELECT count(*) FROM pg_index i JOIN pg_class c2 ON c2.oid = i.indrelid JOIN pg_namespace n2 ON n2.oid = c2.relnamespace WHERE n2.nspname = $1) AS index_count,
+       pg_size_pretty(COALESCE(sum(pg_total_relation_size(c.oid)), 0)) AS total_size,
+       COALESCE(sum(pg_total_relation_size(c.oid)), 0) AS total_size_bytes,
+       pg_size_pretty(COALESCE(sum(pg_relation_size(c.oid)), 0)) AS tables_size,
+       pg_size_pretty(COALESCE(sum(pg_indexes_size(c.oid)), 0)) AS indexes_size,
+       pg_size_pretty(COALESCE(sum(pg_total_relation_size(c.oid) - pg_relation_size(c.oid) - pg_indexes_size(c.oid)), 0)) AS toast_size
+     FROM pg_class c
+     JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE n.nspname = $1 AND c.relkind IN ('r','p','m')`,
+    [schema]
+  );
+
+  const m = meta.rows[0] as Record<string, unknown> | undefined;
+  if (!m) {
+    throw Object.assign(new Error(`Схема не найдена: ${schema}`), { status: 404 });
+  }
+  const a = agg.rows[0] as Record<string, unknown>;
+
+  return {
+    name: String(m.name),
+    owner: String(m.owner),
+    table_count: Number(a.table_count),
+    index_count: Number(a.index_count),
+    total_size: String(a.total_size),
+    total_size_bytes: Number(a.total_size_bytes),
+    tables_size: String(a.tables_size),
+    indexes_size: String(a.indexes_size),
+    toast_size: String(a.toast_size),
+  };
+}
+
+export async function getSchemaAnalysis(connId: string, db: string, schema: string): Promise<SchemaTableRow[]> {
+  assertIdent(schema);
+  const pool = getPool(connId, db);
+  const res = await q(
+    pool,
+    { connId, db },
+    `SELECT
+       c.relname AS name,
+       CASE c.relkind WHEN 'r' THEN 'table' WHEN 'p' THEN 'partitioned' WHEN 'v' THEN 'view' WHEN 'm' THEN 'materialized' ELSE c.relkind::text END AS kind,
+       GREATEST(c.reltuples::bigint, 0) AS row_estimate,
+       pg_relation_size(c.oid) AS table_size,
+       pg_indexes_size(c.oid) AS indexes_size,
+       pg_total_relation_size(c.oid) AS total_size,
+       (SELECT count(*) FROM pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped) AS column_count,
+       st.last_vacuum,
+       st.last_analyze
+     FROM pg_class c
+     JOIN pg_namespace n ON n.oid = c.relnamespace
+     LEFT JOIN pg_stat_all_tables st ON st.relid = c.oid
+     WHERE n.nspname = $1 AND c.relkind IN ('r','p','v','m')
+     ORDER BY c.relname`,
+    [schema]
+  );
+
+  return res.rows.map((r: Record<string, unknown>) => ({
+    name: String(r.name),
+    kind: String(r.kind),
+    column_count: Number(r.column_count),
+    row_estimate: Number(r.row_estimate),
+    table_size: Number(r.table_size),
+    indexes_size: Number(r.indexes_size),
+    total_size: Number(r.total_size),
+    last_vacuum: sanitize(r.last_vacuum) as string | null,
+    last_analyze: sanitize(r.last_analyze) as string | null,
+  }));
+}

@@ -27,7 +27,10 @@ function NodeRow({ node, depth }: { node: TreeNode; depth: number }) {
       store.selected?.table === node.table &&
       store.selected?.schema === node.schema &&
       store.selected?.db === node.db) ||
-    (node.kind === 'db' && store.selectedDb === node.db);
+    (node.kind === 'db' && store.selectedDb === node.db) ||
+    (node.kind === 'schema' &&
+      store.selectedSchema?.schema === node.schema &&
+      store.selectedSchema?.db === node.db);
 
   return (
     <div>
@@ -41,6 +44,9 @@ function NodeRow({ node, depth }: { node: TreeNode; depth: number }) {
           else if (node.kind === 'db') {
             store.toggleNode(node);
             store.selectDatabase(node.db!);
+          } else if (node.kind === 'schema') {
+            store.toggleNode(node);
+            store.selectSchema(node.db!, node.schema!);
           } else store.toggleNode(node);
         }}
       >

@@ -10,8 +10,8 @@
 
 - **Дерево БД** — иерархия подключений, баз, схем и таблиц с ленивой загрузкой
   (данные подгружаются при раскрытии) и оценкой числа строк у каждой таблицы.
-  Клик по базе данных открывает панели «Информация» (размер, счётчики, кодировка)
-  и «Сервис» (статистика + VACUUM/ANALYZE/REINDEX DATABASE).
+  Клик по базе данных открывает панели «Информация» и «Сервис», клик по схеме —
+  «Информация» и «Анализ» (таблица с колонками/строками/размерами по каждой таблице).
 - **Данные** — табличная сетка на TanStack Table: серверная сортировка, фильтр
   по значению, пагинация (LIMIT/offset), экспорт в Excel и CSV.
 - **Структура** — колонки с типами, NOT NULL, DEFAULT, первичными и внешними ключами.
@@ -104,5 +104,7 @@ db_man/
 | POST | `/api/connections/:id/databases/:db/service/vacuum` | `VACUUM` всей БД |
 | POST | `/api/connections/:id/databases/:db/service/analyze` | `ANALYZE` всей БД |
 | POST | `/api/connections/:id/databases/:db/service/reindex` | `REINDEX DATABASE` (все индексы БД) |
+| GET | `/api/connections/:id/databases/:db/schemas/:s/info` | информация о схеме (размер, счётчики) |
+| GET | `/api/connections/:id/databases/:db/schemas/:s/analysis` | анализ таблиц схемы (колонки/строки/размеры/VACUUM/ANALYZE) |
 | GET | `/api/logs` | журнал запросов (пагинация: `limit`/`offset`) |
 | GET | `/api/logs/export?format=xlsx\|csv&limit=&offset=` | выгрузка журнала (страница или весь) |

@@ -29,8 +29,10 @@ interface DbManState {
 
   selected: { db: string; schema: string; table: string } | null;
   selectedDb: string | null;
+  selectedSchema: { db: string; schema: string } | null;
   view: ViewKind;
   dbView: 'info' | 'service';
+  schemaView: 'info' | 'analysis';
   columns: ColumnMeta[];
   rows: unknown[][];
   total: number;
@@ -57,8 +59,10 @@ interface DbManState {
   loadChildren: (node: TreeNode) => Promise<void>;
   selectTable: (db: string, schema: string, table: string) => Promise<void>;
   selectDatabase: (db: string) => void;
+  selectSchema: (db: string, schema: string) => void;
   setView: (v: ViewKind) => void;
   setDbView: (v: 'info' | 'service') => void;
+  setSchemaView: (v: 'info' | 'analysis') => void;
   setPage: (p: number) => void;
   setPageSize: (n: number) => void;
   setSort: (col: string) => void;
@@ -76,8 +80,10 @@ export const useStore = create<DbManState>((set, get) => ({
   loadingNodes: {},
   selected: null,
   selectedDb: null,
+  selectedSchema: null,
   view: 'data',
   dbView: 'info',
+  schemaView: 'info',
   columns: [],
   rows: [],
   total: 0,
@@ -93,7 +99,7 @@ export const useStore = create<DbManState>((set, get) => ({
   },
 
   setActiveConn: (id) =>
-    set({ activeConnId: id, selected: null, selectedDb: null, columns: [], rows: [], total: 0 }),
+    set({ activeConnId: id, selected: null, selectedDb: null, selectedSchema: null, columns: [], rows: [], total: 0 }),
 
   connect: async (id, password) => {
     set({ connecting: true });
@@ -205,6 +211,7 @@ export const useStore = create<DbManState>((set, get) => ({
     set({
       selected: { db, schema, table },
       selectedDb: null,
+      selectedSchema: null,
       view: 'data',
       page: 0,
       sort: null,
@@ -225,8 +232,11 @@ export const useStore = create<DbManState>((set, get) => ({
 
   setView: (v) => set({ view: v }),
   setDbView: (v) => set({ dbView: v }),
+  setSchemaView: (v) => set({ schemaView: v }),
   selectDatabase: (db) =>
-    set({ selectedDb: db, selected: null, columns: [], rows: [], total: 0, dbView: 'info' }),
+    set({ selectedDb: db, selected: null, selectedSchema: null, columns: [], rows: [], total: 0, dbView: 'info' }),
+  selectSchema: (db, schema) =>
+    set({ selectedSchema: { db, schema }, selected: null, selectedDb: null, columns: [], rows: [], total: 0, schemaView: 'info' }),
   setPage: (p) => set({ page: p }),
   setPageSize: (n) => set({ pageSize: n, page: 0 }),
   setSort: (col) =>

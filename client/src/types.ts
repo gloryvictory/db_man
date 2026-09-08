@@ -154,3 +154,27 @@ export interface DatabaseStats {
   blk_write_time: number;
   stats_reset: string | null;
 }
+
+export interface SchemaInfo {
+  name: string;
+  owner: string;
+  table_count: number;
+  index_count: number;
+  total_size: string;
+  total_size_bytes: number;
+  tables_size: string;
+  indexes_size: string;
+  toast_size: string;
+}
+
+export interface SchemaTableRow {
+  name: string;
+  kind: string;
+  column_count: number;
+  row_estimate: number;
+  table_size: number;
+  indexes_size: number;
+  total_size: number;
+  last_vacuum: string | null;
+  last_analyze: string | null;
+}
