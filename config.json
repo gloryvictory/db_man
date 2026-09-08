@@ -1,0 +1,12 @@
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 3001,
+    "sqlitePath": "./data/dbman.db"
+  },
+  "client": {
+    "host": "127.0.0.1",
+    "port": 5173,
+    "apiProxy": "http://127.0.0.1:3001"
+  }
+}

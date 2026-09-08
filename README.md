@@ -56,6 +56,41 @@ npm run dev        # сервер :3001 + клиент :5173
 Откройте http://localhost:5173, добавьте подключение
 (host / port / database / username / password).
 
+## Конфигурация
+
+Настройки сервера и клиента вынесены в `config.json` в корне:
+
+```json
+{
+  "server": { "host": "127.0.0.1", "port": 3001, "sqlitePath": "./data/dbman.db" },
+  "client": { "host": "127.0.0.1", "port": 5173, "apiProxy": "http://127.0.0.1:3001" }
+}
+```
+
+- `server.host` / `server.port` — где слушает Express.
+- `client.host` / `client.port` — dev-сервер Vite.
+- `client.apiProxy` — куда Vite проксирует `/api` в режиме разработки.
+
+Переменные окружения (`HOST`, `PORT`, `SQLITE_PATH` — шаблон в `server/.env.example`)
+переопределяют значения из `config.json`.
+
+## Nginx
+
+Сервер приложения сам раздаёт SPA и API, поэтому достаточно проксировать весь
+трафик на `server.host:server.port`. Полный пример — в `nginx.conf`:
+
+```nginx
+server {
+    listen 80;
+    location / {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 600s;   # VACUUM/ANALYZE/REINDEX выполняются долго
+    }
+}
+```
+
 ## Структура
 
 ```

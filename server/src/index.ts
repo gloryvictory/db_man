@@ -48,7 +48,7 @@ app.use((err: Error & { status?: number }, _req: Request, res: Response, _next: 
   res.status(status).json({ error: err?.message || 'Internal server error' });
 });
 
-app.listen(config.port, () => {
-  console.log(`[db_man] server listening on http://localhost:${config.port}`);
+app.listen(config.port, config.host, () => {
+  console.log(`[db_man] server listening on http://${config.host}:${config.port}`);
   console.log(`[db_man] sqlite: ${config.sqlitePath}`);
 });
