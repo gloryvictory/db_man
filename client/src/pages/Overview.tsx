@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { Select, Loader, Center, Text } from '@mantine/core';
 import { useStore } from '../store';
 import { api } from '../api';
+import { Select, Loader } from '../components/ui';
 import type { StatsRow } from '../types';
 
 export default function Overview() {
@@ -35,11 +35,9 @@ export default function Overview() {
 
   if (!store.connected) {
     return (
-      <Center className="h-full">
-        <Text c="dimmed" size="sm">
-          Подключитесь к базе данных, чтобы увидеть обзор.
-        </Text>
-      </Center>
+      <div className="grid h-full place-items-center">
+        <div className="text-sm text-[#5c6478]">Подключитесь к базе данных, чтобы увидеть обзор.</div>
+      </div>
     );
   }
 
@@ -50,25 +48,23 @@ export default function Overview() {
       <div className="mb-4 flex items-center gap-3">
         <h1 className="text-lg font-semibold">Крупнейшие таблицы (оценка)</h1>
         <Select
-          size="xs"
-          w={200}
-          data={dbs}
+          width={200}
           value={db}
           onChange={setDb}
+          options={dbs.map((d) => ({ value: d, label: d }))}
           placeholder="База данных"
+          searchable
         />
       </div>
 
       {loading ? (
-        <Center className="h-[420px]">
-          <Loader color="#35c98e" />
-        </Center>
+        <div className="grid h-[420px] place-items-center">
+          <Loader />
+        </div>
       ) : data.length === 0 ? (
-        <Center className="h-[420px]">
-          <Text c="dimmed" size="sm">
-            Нет таблиц для отображения.
-          </Text>
-        </Center>
+        <div className="grid h-[420px] place-items-center">
+          <div className="text-sm text-[#5c6478]">Нет таблиц для отображения.</div>
+        </div>
       ) : (
         <div className="h-[480px]">
           <ResponsiveContainer width="100%" height="100%">

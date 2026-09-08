@@ -10,8 +10,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@mantine/core": "^7.17.8",
-    "@mantine/hooks": "^7.17.8",
     "@tanstack/react-table": "^8.21.3",
     "clsx": "2.0.0",
     "lucide-react": "0.263.1",

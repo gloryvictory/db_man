@@ -15,7 +15,7 @@ export interface TreeNode {
   tableKind?: string;
 }
 
-export type ViewKind = 'data' | 'structure' | 'sql';
+export type ViewKind = 'data' | 'structure' | 'sql' | 'service';
 
 interface DbManState {
   connections: StoredConnection[];

@@ -8,6 +8,7 @@ import connectionsRouter from './routes/connections';
 import catalogRouter from './routes/catalog';
 import tableRouter from './routes/table';
 import exportRouter from './routes/export';
+import maintenanceRouter from './routes/maintenance';
 import logsRouter from './routes/logs';
 
 initDb(config.sqlitePath);
@@ -24,6 +25,7 @@ app.use('/api/connections', connectionsRouter);
 app.use('/api/connections', catalogRouter);
 app.use('/api/connections', tableRouter);
 app.use('/api/connections', exportRouter);
+app.use('/api/connections', maintenanceRouter);
 app.use('/api/logs', logsRouter);
 
 // раздача собранного клиента (production)

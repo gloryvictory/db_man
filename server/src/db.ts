@@ -1,5 +1,5 @@
 import type { Pool } from 'pg';
-import { getPool } from './pools';
+import { getPool, getSecrets } from './pools';
 import { assertIdent, quote } from './ident';
 import { logQuery } from './sqlite';
 
@@ -27,11 +27,20 @@ function truncate(s: string, n: number): string {
 
 async function q(pool: Pool, meta: { connId: string; db: string }, sql: string, params: unknown[] = []) {
   const start = Date.now();
+  const s = getSecrets(meta.connId);
+  const host = s?.host ?? null;
+  const port = s?.port ?? null;
+  const username = s?.user ?? null;
+  const dsn = host ? `postgresql://${username ?? ''}@${host}:${port ?? 5432}/${meta.db}` : null;
   try {
     const res = await pool.query(sql, params as never[]);
     logQuery({
       connection_id: meta.connId,
       database: meta.db,
+      host,
+      port,
+      username,
+      dsn,
       query: truncate(sql, 300),
       duration_ms: Date.now() - start,
       rows: res.rows.length,
@@ -43,6 +52,10 @@ async function q(pool: Pool, meta: { connId: string; db: string }, sql: string, 
     logQuery({
       connection_id: meta.connId,
       database: meta.db,
+      host,
+      port,
+      username,
+      dsn,
       query: truncate(sql, 300),
       duration_ms: Date.now() - start,
       rows: 0,
@@ -273,4 +286,265 @@ export async function getStats(connId: string, db: string): Promise<StatsRow[]> 
      LIMIT 50`
   );
   return res.rows.map((r) => ({ schema: r.schema, name: r.name, rows: Number(r.rows) }));
+}
+
+// ---------- сервис / обслуживание ----------
+
+export interface TableServiceInfo {
+  total_size: string;
+  total_size_bytes: number;
+  table_size: string;
+  indexes_size: string;
+  toast_size: string;
+  tablespace: string;
+  relfilenode: string;
+  estimated_rows: number;
+  relpages: number;
+  access_method: string;
+}
+
+export interface IndexInfo {
+  name: string;
+  definition: string;
+  access_method: string;
+  size: string;
+  size_bytes: number;
+  is_unique: boolean;
+  is_primary: boolean;
+  is_valid: boolean;
+  idx_scan: number;
+  idx_tup_read: number;
+  idx_tup_fetch: number;
+}
+
+export interface TableStats {
+  last_vacuum: string | null;
+  last_autovacuum: string | null;
+  vacuum_count: number;
+  autovacuum_count: number;
+  last_analyze: string | null;
+  last_autoanalyze: string | null;
+  analyze_count: number;
+  autoanalyze_count: number;
+  n_live_tup: number;
+  n_dead_tup: number;
+  n_mod_since_analyze: number;
+}
+
+export interface SpatialIndexInfo {
+  name: string;
+  access_method: string;
+  definition: string;
+  size: string;
+  column_name: string;
+}
+
+export interface ServiceResult {
+  table: TableServiceInfo | null;
+  indexes: IndexInfo[];
+  stats: TableStats | null;
+  geometry_columns: string[];
+  spatial_indexes: SpatialIndexInfo[];
+}
+
+export async function getTableService(connId: string, db: string, schema: string, table: string): Promise<ServiceResult> {
+  assertIdent(schema);
+  assertIdent(table);
+  const pool = getPool(connId, db);
+
+  const info = await q(
+    pool,
+    { connId, db },
+    `SELECT
+       pg_size_pretty(pg_total_relation_size(c.oid)) AS total_size,
+       pg_total_relation_size(c.oid) AS total_size_bytes,
+       pg_size_pretty(pg_relation_size(c.oid)) AS table_size,
+       pg_size_pretty(pg_indexes_size(c.oid)) AS indexes_size,
+       pg_size_pretty(pg_total_relation_size(c.oid) - pg_relation_size(c.oid) - pg_indexes_size(c.oid)) AS toast_size,
+       COALESCE(ts.spcname, 'pg_default') AS tablespace,
+       c.relfilenode::text AS relfilenode,
+       GREATEST(c.reltuples::bigint, 0) AS estimated_rows,
+       c.relpages::bigint AS relpages,
+       am.amname AS access_method
+     FROM pg_class c
+     JOIN pg_namespace n ON n.oid = c.relnamespace
+     LEFT JOIN pg_tablespace ts ON ts.oid = c.reltablespace
+     LEFT JOIN pg_am am ON am.oid = c.relam
+     WHERE n.nspname = $1 AND c.relname = $2`,
+    [schema, table]
+  );
+
+  const indexes = await q(
+    pool,
+    { connId, db },
+    `SELECT
+       idx.relname AS name,
+       pg_get_indexdef(idx.oid) AS definition,
+       am.amname AS access_method,
+       pg_size_pretty(pg_relation_size(idx.oid)) AS size,
+       pg_relation_size(idx.oid) AS size_bytes,
+       i.indisunique AS is_unique,
+       i.indisprimary AS is_primary,
+       i.indisvalid AS is_valid,
+       COALESCE(s.idx_scan, 0) AS idx_scan,
+       COALESCE(s.idx_tup_read, 0) AS idx_tup_read,
+       COALESCE(s.idx_tup_fetch, 0) AS idx_tup_fetch
+     FROM pg_index i
+     JOIN pg_class c ON c.oid = i.indrelid
+     JOIN pg_namespace n ON n.oid = c.relnamespace
+     JOIN pg_class idx ON idx.oid = i.indexrelid
+     JOIN pg_am am ON am.oid = idx.relam
+     LEFT JOIN pg_stat_user_indexes s ON s.indexrelid = idx.oid
+     WHERE n.nspname = $1 AND c.relname = $2
+     ORDER BY i.indisprimary DESC, idx.relname`,
+    [schema, table]
+  );
+
+  const stats = await q(
+    pool,
+    { connId, db },
+    `SELECT
+       last_vacuum, last_autovacuum, vacuum_count, autovacuum_count,
+       last_analyze, last_autoanalyze, analyze_count, autoanalyze_count,
+       n_live_tup, n_dead_tup, n_mod_since_analyze
+     FROM pg_stat_all_tables
+     WHERE schemaname = $1 AND relname = $2`,
+    [schema, table]
+  );
+
+  const geo = await q(
+    pool,
+    { connId, db },
+    `SELECT a.attname AS name
+     FROM pg_attribute a
+     JOIN pg_class c ON c.oid = a.attrelid
+     JOIN pg_namespace n ON n.oid = c.relnamespace
+     JOIN pg_type t ON t.oid = a.atttypid
+     WHERE n.nspname = $1 AND c.relname = $2
+       AND a.attnum > 0 AND NOT a.attisdropped
+       AND t.typname IN ('geometry', 'geography')
+     ORDER BY a.attnum`,
+    [schema, table]
+  );
+
+  const spatial = await q(
+    pool,
+    { connId, db },
+    `SELECT
+       idx.relname AS name,
+       am.amname AS access_method,
+       pg_get_indexdef(idx.oid) AS definition,
+       pg_size_pretty(pg_relation_size(idx.oid)) AS size,
+       a.attname AS column_name
+     FROM pg_index i
+     JOIN pg_class c ON c.oid = i.indrelid
+     JOIN pg_namespace n ON n.oid = c.relnamespace
+     JOIN pg_class idx ON idx.oid = i.indexrelid
+     JOIN pg_am am ON am.oid = idx.relam
+     JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
+     JOIN pg_type t ON t.oid = a.atttypid
+     WHERE n.nspname = $1 AND c.relname = $2
+       AND am.amname IN ('gist', 'spgist')
+       AND t.typname IN ('geometry', 'geography')
+     ORDER BY idx.relname`,
+    [schema, table]
+  );
+
+  const infoRow = info.rows[0] as Record<string, unknown> | undefined;
+  const statsRow = stats.rows[0] as Record<string, unknown> | undefined;
+
+  return {
+    table: infoRow
+      ? {
+          total_size: String(infoRow.total_size),
+          total_size_bytes: Number(infoRow.total_size_bytes),
+          table_size: String(infoRow.table_size),
+          indexes_size: String(infoRow.indexes_size),
+          toast_size: String(infoRow.toast_size),
+          tablespace: String(infoRow.tablespace),
+          relfilenode: String(infoRow.relfilenode),
+          estimated_rows: Number(infoRow.estimated_rows),
+          relpages: Number(infoRow.relpages),
+          access_method: String(infoRow.access_method),
+        }
+      : null,
+    indexes: indexes.rows.map((r: Record<string, unknown>) => ({
+      name: String(r.name),
+      definition: String(r.definition),
+      access_method: String(r.access_method),
+      size: String(r.size),
+      size_bytes: Number(r.size_bytes),
+      is_unique: Boolean(r.is_unique),
+      is_primary: Boolean(r.is_primary),
+      is_valid: Boolean(r.is_valid),
+      idx_scan: Number(r.idx_scan),
+      idx_tup_read: Number(r.idx_tup_read),
+      idx_tup_fetch: Number(r.idx_tup_fetch),
+    })),
+    stats: statsRow
+      ? {
+          last_vacuum: sanitize(statsRow.last_vacuum) as string | null,
+          last_autovacuum: sanitize(statsRow.last_autovacuum) as string | null,
+          vacuum_count: Number(statsRow.vacuum_count),
+          autovacuum_count: Number(statsRow.autovacuum_count),
+          last_analyze: sanitize(statsRow.last_analyze) as string | null,
+          last_autoanalyze: sanitize(statsRow.last_autoanalyze) as string | null,
+          analyze_count: Number(statsRow.analyze_count),
+          autoanalyze_count: Number(statsRow.autoanalyze_count),
+          n_live_tup: Number(statsRow.n_live_tup),
+          n_dead_tup: Number(statsRow.n_dead_tup),
+          n_mod_since_analyze: Number(statsRow.n_mod_since_analyze),
+        }
+      : null,
+    geometry_columns: geo.rows.map((r: Record<string, unknown>) => String(r.name)),
+    spatial_indexes: spatial.rows.map((r: Record<string, unknown>) => ({
+      name: String(r.name),
+      access_method: String(r.access_method),
+      definition: String(r.definition),
+      size: String(r.size),
+      column_name: String(r.column_name),
+    })),
+  };
+}
+
+export async function reindexTable(connId: string, db: string, schema: string, table: string, index: string): Promise<void> {
+  assertIdent(schema);
+  assertIdent(table);
+  assertIdent(index, 'индекс');
+  const pool = getPool(connId, db);
+  await q(pool, { connId, db }, `REINDEX INDEX ${quote(schema)}.${quote(index)}`);
+}
+
+export async function reindexAllTable(connId: string, db: string, schema: string, table: string): Promise<void> {
+  assertIdent(schema);
+  assertIdent(table);
+  const pool = getPool(connId, db);
+  await q(pool, { connId, db }, `REINDEX TABLE ${quote(schema)}.${quote(table)}`);
+}
+
+export async function vacuumTable(connId: string, db: string, schema: string, table: string): Promise<void> {
+  assertIdent(schema);
+  assertIdent(table);
+  const pool = getPool(connId, db);
+  await q(pool, { connId, db }, `VACUUM ${quote(schema)}.${quote(table)}`);
+}
+
+export async function analyzeTable(connId: string, db: string, schema: string, table: string): Promise<void> {
+  assertIdent(schema);
+  assertIdent(table);
+  const pool = getPool(connId, db);
+  await q(pool, { connId, db }, `ANALYZE ${quote(schema)}.${quote(table)}`);
+}
+
+export async function createSpatialIndex(connId: string, db: string, schema: string, table: string, column: string): Promise<void> {
+  assertIdent(schema);
+  assertIdent(table);
+  assertIdent(column, 'колонка');
+  const pool = getPool(connId, db);
+  const idxName = `idx_${table}_${column}_gist`;
+  await q(
+    pool,
+    { connId, db },
+    `CREATE INDEX IF NOT EXISTS ${quote(idxName)} ON ${quote(schema)}.${quote(table)} USING GIST (${quote(column)})`
+  );
 }

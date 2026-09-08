@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
-import { Loader, Text } from '@mantine/core';
 import { ChevronRight, Server, Database, Layers, Table } from 'lucide-react';
 import { useStore, type TreeNode } from '../store';
+import { Loader } from './ui';
 
 function iconFor(kind: TreeNode['kind']) {
   switch (kind) {
@@ -46,7 +46,7 @@ function NodeRow({ node, depth }: { node: TreeNode; depth: number }) {
             expanded ? 'rotate-90' : ''
           }`}
         >
-          {hasChildren && (loading ? <Loader size={10} color="#35c98e" /> : <ChevronRight size={10} />)}
+          {hasChildren && (loading ? <Loader size={10} /> : <ChevronRight size={10} />)}
         </span>
         <span className="flex w-4 shrink-0 justify-center">{iconFor(node.kind)}</span>
         <span className={`truncate ${node.kind === 'table' || node.kind === 'db' ? 'font-mono' : ''}`}>
@@ -89,19 +89,24 @@ export default function Sidebar() {
     <aside className="flex w-[280px] shrink-0 flex-col border-r border-[#272c39] bg-[#12151c]">
       <div className="min-h-0 flex-1 overflow-auto p-2">
         {!store.activeConnId || !conn ? (
-          <Text size="xs" c="dimmed" className="px-2 py-1">
+          <div className="px-2 py-1 text-[12px] text-[#5c6478]">
             Добавьте подключение, чтобы начать работу.
-          </Text>
+          </div>
         ) : (
           <>
             <NodeRow
-              node={{ id: conn.id, label: `${conn.name} · ${conn.host}:${conn.port}`, kind: 'conn', connId: conn.id }}
+              node={{
+                id: conn.id,
+                label: `${conn.name} · ${conn.host}:${conn.port}`,
+                kind: 'conn',
+                connId: conn.id,
+              }}
               depth={0}
             />
             {!store.connected && (
-              <Text size="xs" c="dimmed" className="px-6 py-1">
+              <div className="px-6 py-1 text-[12px] text-[#5c6478]">
                 Не подключено — нажмите «Подключить».
-              </Text>
+              </div>
             )}
           </>
         )}

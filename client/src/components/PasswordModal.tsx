@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Modal, PasswordInput, Button, Stack } from '@mantine/core';
 import toast from 'react-hot-toast';
 import { useStore } from '../store';
+import { Modal, Field, Input, Button } from './ui';
 
-export default function PasswordModal({ opened, onClose }: { opened: boolean; onClose: () => void }) {
+export default function PasswordModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const store = useStore();
   const [pwd, setPwd] = useState('');
   const [busy, setBusy] = useState(false);
@@ -23,19 +23,19 @@ export default function PasswordModal({ opened, onClose }: { opened: boolean; on
   }
 
   return (
-    <Modal opened={opened} onClose={onClose} title="Требуется пароль" centered>
-      <form onSubmit={submit}>
-        <Stack gap="sm">
-          <PasswordInput
-            label="Пароль"
+    <Modal open={open} onClose={onClose} title="Требуется пароль" width={380}>
+      <form onSubmit={submit} className="flex flex-col gap-3">
+        <Field label="Пароль">
+          <Input
+            type="password"
             autoFocus
             value={pwd}
-            onChange={(e) => setPwd(e.currentTarget.value)}
+            onChange={(e) => setPwd(e.target.value)}
           />
-          <Button type="submit" loading={busy}>
-            Подключить
-          </Button>
-        </Stack>
+        </Field>
+        <Button variant="primary" type="submit" disabled={busy}>
+          {busy ? 'Подключение…' : 'Подключить'}
+        </Button>
       </form>
     </Modal>
   );

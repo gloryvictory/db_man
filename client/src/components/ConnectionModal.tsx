@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Modal, TextInput, NumberInput, PasswordInput, Button, Stack } from '@mantine/core';
 import toast from 'react-hot-toast';
 import { useStore } from '../store';
+import { Modal, Field, Input, Button } from './ui';
 
 const empty = {
   name: '',
@@ -12,7 +12,7 @@ const empty = {
   password: '',
 };
 
-export default function ConnectionModal({ opened, onClose }: { opened: boolean; onClose: () => void }) {
+export default function ConnectionModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const store = useStore();
   const [form, setForm] = useState(empty);
   const [saving, setSaving] = useState(false);
@@ -43,58 +43,63 @@ export default function ConnectionModal({ opened, onClose }: { opened: boolean; 
     }
   }
 
-  const set = (k: keyof typeof empty) => (v: unknown) => setForm((f) => ({ ...f, [k]: v }));
-
   return (
-    <Modal opened={opened} onClose={onClose} title="Новое подключение" centered>
-      <form onSubmit={submit}>
-        <Stack gap="sm">
-          <TextInput
-            label="Название"
-            placeholder="Локальная база"
+    <Modal open={open} onClose={onClose} title="Новое подключение" width={460}>
+      <form onSubmit={submit} className="flex flex-col gap-3">
+        <Field label="Название">
+          <Input
             required
+            placeholder="Локальная база"
             value={form.name}
-            onChange={(e) => set('name')(e.currentTarget.value)}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
-          <div className="flex gap-2">
-            <TextInput
-              label="Хост"
-              className="flex-1"
-              required
-              value={form.host}
-              onChange={(e) => set('host')(e.currentTarget.value)}
-            />
-            <NumberInput
-              label="Порт"
-              w={90}
-              min={1}
-              max={65535}
-              value={form.port}
-              onChange={(v) => set('port')(Number(v) || 5432)}
-            />
+        </Field>
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <Field label="Хост">
+              <Input
+                required
+                value={form.host}
+                onChange={(e) => setForm({ ...form, host: e.target.value })}
+              />
+            </Field>
           </div>
-          <TextInput
-            label="База данных"
+          <div className="w-[92px]">
+            <Field label="Порт">
+              <Input
+                type="number"
+                min={1}
+                max={65535}
+                value={form.port}
+                onChange={(e) => setForm({ ...form, port: Number(e.target.value) || 5432 })}
+              />
+            </Field>
+          </div>
+        </div>
+        <Field label="База данных">
+          <Input
             required
             value={form.database}
-            onChange={(e) => set('database')(e.currentTarget.value)}
+            onChange={(e) => setForm({ ...form, database: e.target.value })}
           />
-          <TextInput
-            label="Пользователь"
+        </Field>
+        <Field label="Пользователь">
+          <Input
             required
             value={form.username}
-            onChange={(e) => set('username')(e.currentTarget.value)}
+            onChange={(e) => setForm({ ...form, username: e.target.value })}
           />
-          <PasswordInput
-            label="Пароль"
-            description="Хранится только в памяти сервера, не сохраняется на диск"
+        </Field>
+        <Field label="Пароль" description="Хранится только в памяти сервера, не сохраняется на диск">
+          <Input
+            type="password"
             value={form.password}
-            onChange={(e) => set('password')(e.currentTarget.value)}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
           />
-          <Button type="submit" loading={saving}>
-            Добавить и подключить
-          </Button>
-        </Stack>
+        </Field>
+        <Button variant="primary" type="submit" disabled={saving} className="mt-1">
+          {saving ? 'Подключение…' : 'Добавить и подключить'}
+        </Button>
       </form>
     </Modal>
   );

@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
-import { SegmentedControl, TextInput, Select, Badge, Menu, Button } from '@mantine/core';
 import { RefreshCw, Download } from 'lucide-react';
-import toast from 'react-hot-toast';
 import Sidebar from '../components/Sidebar';
 import DataView from '../components/DataView';
 import StructureView from '../components/StructureView';
 import SqlView from '../components/SqlView';
+import ServiceView from '../components/ServiceView';
 import { useStore } from '../store';
 import { api } from '../api';
+import { Button, Input, Tabs, Badge } from '../components/ui';
 
 function download(url: string) {
   const a = document.createElement('a');
@@ -59,62 +59,48 @@ export default function Browser() {
                   <b className="text-[#e7eaf0]">{store.total.toLocaleString('ru-RU')}</b> строк ·{' '}
                   <b className="text-[#e7eaf0]">{sel.db}</b>
                 </span>
-                {store.loadingTable && <Badge size="xs" variant="light">загрузка…</Badge>}
+                {store.loadingTable && <Badge kind="kind">загрузка…</Badge>}
               </div>
               <div className="mt-3">
-                <SegmentedControl
-                  size="xs"
+                <Tabs
                   value={store.view}
-                  onChange={(v) => store.setView(v as 'data' | 'structure' | 'sql')}
-                  data={[
-                    { label: 'Данные', value: 'data' },
-                    { label: 'Структура', value: 'structure' },
-                    { label: 'SQL', value: 'sql' },
+                  onChange={(v) => store.setView(v as 'data' | 'structure' | 'sql' | 'service')}
+                  items={[
+                    { value: 'data', label: 'Данные' },
+                    { value: 'structure', label: 'Структура' },
+                    { value: 'sql', label: 'SQL' },
+                    { value: 'service', label: 'Сервис' },
                   ]}
                 />
               </div>
             </div>
 
             <div className="flex items-center gap-3 border-b border-[#272c39] px-4 py-2">
-              <Button
-                size="compact-sm"
-                variant="default"
-                leftSection={<RefreshCw size={14} />}
-                onClick={() => store.fetchRows()}
-              >
+              <Button onClick={() => store.fetchRows()}>
+                <RefreshCw size={14} />
                 Обновить
               </Button>
-              <TextInput
-                size="xs"
-                w={220}
-                placeholder="Фильтр по значению…"
-                value={filterLocal}
-                onChange={(e) => setFilterLocal(e.currentTarget.value)}
-              />
-              <Select
-                size="xs"
-                w={90}
-                data={['10', '25', '50', '100']}
-                value={String(store.pageSize)}
-                onChange={(v) => store.setPageSize(Number(v))}
-              />
+              <div className="w-[220px]">
+                <Input
+                  placeholder="Фильтр по значению…"
+                  value={filterLocal}
+                  onChange={(e) => setFilterLocal(e.target.value)}
+                />
+              </div>
               <div className="flex-1" />
-              <Menu position="bottom-end">
-                <Menu.Target>
-                  <Button size="compact-sm" variant="default" leftSection={<Download size={14} />}>
-                    Экспорт
-                  </Button>
-                </Menu.Target>
-                <Menu.Dropdown>
-                  <Menu.Item onClick={() => doExport('xlsx')}>Excel (.xlsx)</Menu.Item>
-                  <Menu.Item onClick={() => doExport('csv')}>CSV</Menu.Item>
-                </Menu.Dropdown>
-              </Menu>
+              <Button onClick={() => doExport('xlsx')}>
+                <Download size={14} />
+                Excel
+              </Button>
+              <Button variant="subtle" onClick={() => doExport('csv')}>
+                CSV
+              </Button>
             </div>
 
             {store.view === 'data' && <DataView />}
             {store.view === 'structure' && <StructureView />}
             {store.view === 'sql' && <SqlView />}
+            {store.view === 'service' && <ServiceView />}
 
             <div className="flex h-[26px] items-center gap-3 border-t border-[#272c39] bg-[#151820] px-3 font-mono text-[11.5px] text-[#8b93a7]">
               <span className="text-[#35c98e]">●</span>

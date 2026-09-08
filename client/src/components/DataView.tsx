@@ -5,9 +5,9 @@ import {
   useReactTable,
   createColumnHelper,
 } from '@tanstack/react-table';
-import { Loader, Center, Text, Button } from '@mantine/core';
 import { useStore } from '../store';
 import { formatValue } from '../lib/format';
+import { Loader, Button, Badge, Select } from './ui';
 import type { ColumnMeta } from '../types';
 
 const columnHelper = createColumnHelper<Record<string, unknown>>();
@@ -17,12 +17,8 @@ function HeaderCell({ col }: { col: ColumnMeta }) {
   const sorted = store.sort?.col === col.name;
   return (
     <span>
-      {col.is_primary && (
-        <span className="mr-1 rounded bg-[#0f2b21] px-1 text-[9px] font-bold text-[#35c98e]">PK</span>
-      )}
-      {col.foreign_ref && !col.is_primary && (
-        <span className="mr-1 rounded bg-[#16283b] px-1 text-[9px] font-bold text-[#5aa7e8]">FK</span>
-      )}
+      {col.is_primary && <Badge kind="pk">PK</Badge>}
+      {col.foreign_ref && !col.is_primary && <Badge kind="fk">FK</Badge>}
       {col.name}
       {sorted && <span className="ml-1 text-[#35c98e]">{store.sort!.dir === 'asc' ? '▲' : '▼'}</span>}
       <span className="block text-[10px] font-normal text-[#5c6478]">{col.data_type}</span>
@@ -91,9 +87,9 @@ export default function DataView() {
 
   if (store.loadingTable && (store.rows.length === 0 || store.columns.length === 0)) {
     return (
-      <Center className="min-h-0 flex-1">
-        <Loader color="#35c98e" />
-      </Center>
+      <div className="grid min-h-0 flex-1 place-items-center">
+        <Loader />
+      </div>
     );
   }
 
@@ -156,22 +152,23 @@ export default function DataView() {
           {Math.min((store.page + 1) * store.pageSize, store.total)} из{' '}
           {store.total.toLocaleString('ru-RU')}
         </span>
-        <span className="text-[#5c6478]">LIMIT {store.pageSize}</span>
         <div className="flex-1" />
-        <Button
-          size="compact-xs"
-          variant="subtle"
-          disabled={store.page === 0}
-          onClick={() => store.setPage(store.page - 1)}
-        >
+        <span className="text-[#5c6478]">LIMIT</span>
+        <Select
+          direction="up"
+          width={68}
+          value={String(store.pageSize)}
+          onChange={(v) => store.setPageSize(Number(v))}
+          options={['10', '25', '50', '100'].map((n) => ({ value: n, label: n }))}
+        />
+        <Button size="xs" disabled={store.page === 0} onClick={() => store.setPage(store.page - 1)}>
           ‹
         </Button>
         <span>
           стр. {store.page + 1} / {pageCount}
         </span>
         <Button
-          size="compact-xs"
-          variant="subtle"
+          size="xs"
           disabled={store.page >= pageCount - 1}
           onClick={() => store.setPage(store.page + 1)}
         >

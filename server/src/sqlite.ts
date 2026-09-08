@@ -16,6 +16,10 @@ export interface StoredConnection {
 export interface LogEntry {
   connection_id: string | null;
   database: string | null;
+  host: string | null;
+  port: number | null;
+  username: string | null;
+  dsn: string | null;
   query: string;
   duration_ms: number;
   rows: number;
@@ -43,6 +47,10 @@ export function initDb(dbPath: string): DatabaseSync {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       connection_id TEXT,
       database TEXT,
+      host TEXT,
+      port INTEGER,
+      username TEXT,
+      dsn TEXT,
       query TEXT,
       duration_ms REAL,
       rows INTEGER,
@@ -50,7 +58,21 @@ export function initDb(dbPath: string): DatabaseSync {
       created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
     );
   `);
+
+  // миграция для существующих БД (журнал без новых колонок)
+  ensureColumn('query_log', 'host', 'TEXT');
+  ensureColumn('query_log', 'port', 'INTEGER');
+  ensureColumn('query_log', 'username', 'TEXT');
+  ensureColumn('query_log', 'dsn', 'TEXT');
+
   return db;
+}
+
+function ensureColumn(table: string, col: string, def: string): void {
+  const info = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!info.some((c) => c.name === col)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+  }
 }
 
 export function listConnections(): StoredConnection[] {
@@ -85,10 +107,38 @@ export function deleteConnection(id: string): void {
 }
 
 export function logQuery(entry: LogEntry): void {
-  db.prepare('INSERT INTO query_log (connection_id, database, query, duration_ms, rows, error) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(entry.connection_id, entry.database, entry.query, entry.duration_ms, entry.rows, entry.error);
+  db.prepare(
+    `INSERT INTO query_log (connection_id, database, host, port, username, dsn, query, duration_ms, rows, error)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    entry.connection_id,
+    entry.database,
+    entry.host,
+    entry.port,
+    entry.username,
+    entry.dsn,
+    entry.query,
+    entry.duration_ms,
+    entry.rows,
+    entry.error
+  );
 }
 
-export function listLogs(limit = 200): unknown[] {
-  return db.prepare('SELECT * FROM query_log ORDER BY id DESC LIMIT ?').all(limit) as unknown[];
+export function listLogs(limit?: number, offset?: number): unknown[] {
+  let sql = 'SELECT * FROM query_log ORDER BY id DESC';
+  const params: number[] = [];
+  if (limit !== undefined) {
+    sql += ' LIMIT ?';
+    params.push(limit);
+  }
+  if (offset !== undefined) {
+    sql += ' OFFSET ?';
+    params.push(offset);
+  }
+  return db.prepare(sql).all(...params) as unknown[];
+}
+
+export function countLogs(): number {
+  const row = db.prepare('SELECT count(*) AS n FROM query_log').get() as { n: number };
+  return Number(row.n);
 }

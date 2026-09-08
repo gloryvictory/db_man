@@ -1,4 +1,4 @@
-import type { StoredConnection, TableMeta, ColumnMeta, RowsResult, StatsRow, LogRow } from './types';
+import type { StoredConnection, TableMeta, ColumnMeta, RowsResult, StatsRow, LogsResult, ServiceResult } from './types';
 
 const BASE = '/api';
 const enc = encodeURIComponent;
@@ -66,7 +66,38 @@ export const api = {
       `/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables/${enc(table)}/rows` + qs(p)
     ),
   stats: (id: string, db: string) => http<StatsRow[]>(`/connections/${id}/databases/${enc(db)}/stats`),
-  logs: (limit = 200) => http<LogRow[]>(`/logs?limit=${limit}`),
+  service: (id: string, db: string, schema: string, table: string) =>
+    http<ServiceResult>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables/${enc(table)}/service`),
+  reindex: (id: string, db: string, schema: string, table: string, index: string) =>
+    http<{ ok: boolean }>(
+      `/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables/${enc(table)}/service/reindex`,
+      { method: 'POST', body: JSON.stringify({ index }) }
+    ),
+  reindexAll: (id: string, db: string, schema: string, table: string) =>
+    http<{ ok: boolean }>(
+      `/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables/${enc(table)}/service/reindex-table`,
+      { method: 'POST' }
+    ),
+  vacuum: (id: string, db: string, schema: string, table: string) =>
+    http<{ ok: boolean }>(
+      `/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables/${enc(table)}/service/vacuum`,
+      { method: 'POST' }
+    ),
+  analyze: (id: string, db: string, schema: string, table: string) =>
+    http<{ ok: boolean }>(
+      `/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables/${enc(table)}/service/analyze`,
+      { method: 'POST' }
+    ),
+  createSpatialIndex: (id: string, db: string, schema: string, table: string, column: string) =>
+    http<{ ok: boolean }>(
+      `/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables/${enc(table)}/service/spatial-index`,
+      { method: 'POST', body: JSON.stringify({ column }) }
+    ),
+  logs: (limit: number, offset: number) => http<LogsResult>(`/logs?limit=${limit}&offset=${offset}`),
   exportUrl: (id: string, db: string, schema: string, table: string, format: 'xlsx' | 'csv') =>
     `/api/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables/${enc(table)}/export?format=${format}`,
+  logsExportUrl: (format: 'xlsx' | 'csv', page?: { limit: number; offset: number }) => {
+    const p = page ? `?format=${format}&limit=${page.limit}&offset=${page.offset}` : `?format=${format}`;
+    return `/api/logs/export${p}`;
+  },
 };
