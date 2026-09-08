@@ -8,6 +8,7 @@ export interface AnalysisRow {
   schema?: string;
   name: string;
   kind: string;
+  comment: string | null;
   column_count: number;
   row_estimate: number;
   table_size: number;
@@ -92,6 +93,7 @@ export default function AnalysisTable({
     const header = [
       ...(showSchema ? ['Схема'] : []),
       'Имя таблицы',
+      'Комментарий',
       'Тип',
       'Колонок',
       'Строк (оценка)',
@@ -104,6 +106,7 @@ export default function AnalysisTable({
     const data = sorted.map((r) => [
       ...(showSchema ? [r.schema ?? ''] : []),
       r.name,
+      r.comment ?? '',
       r.kind,
       r.column_count,
       r.row_estimate,
@@ -116,7 +119,7 @@ export default function AnalysisTable({
     exportToExcel(exportName, header, data);
   }
 
-  const colCount = 9 + (showSchema ? 1 : 0);
+  const colCount = 10 + (showSchema ? 1 : 0);
 
   return (
     <section>
@@ -136,6 +139,7 @@ export default function AnalysisTable({
             <tr className="bg-[#181c26]">
               {showSchema && <Th col="schema" label="Схема" sort={sort} onSort={toggleSort} />}
               <Th col="name" label="Имя таблицы" sort={sort} onSort={toggleSort} />
+              <Th col="comment" label="Комментарий" sort={sort} onSort={toggleSort} />
               <Th col="kind" label="Тип" sort={sort} onSort={toggleSort} />
               <Th col="column_count" label="Колонок" right sort={sort} onSort={toggleSort} />
               <Th col="row_estimate" label="Строк (оценка)" right sort={sort} onSort={toggleSort} />
@@ -151,6 +155,9 @@ export default function AnalysisTable({
               <tr key={`${r.schema ?? ''}.${r.name}`} className="border-b border-[#272c39] hover:bg-[#1e2330]">
                 {showSchema && <td className="px-3 py-1.5 text-[#e0a94f]">{r.schema}</td>}
                 <td className="px-3 py-1.5 text-[#e7eaf0]">{r.name}</td>
+                <td className="px-3 py-1.5 text-[#8b93a7]">
+                  {r.comment ?? <span className="text-[#6b7390]">—</span>}
+                </td>
                 <td className="px-3 py-1.5 text-[#8b93a7]">{r.kind}</td>
                 <td className="px-3 py-1.5 text-right text-[#c9d2ff]">{r.column_count}</td>
                 <td className="px-3 py-1.5 text-right text-[#e7eaf0]">{r.row_estimate.toLocaleString('ru-RU')}</td>
@@ -173,6 +180,7 @@ export default function AnalysisTable({
             <tr className="border-t border-[#333a4a] bg-[#181c26] font-semibold text-[#e7eaf0]">
               {showSchema ? <td /> : null}
               <td className="px-3 py-1.5">Итого</td>
+              <td />
               <td />
               <td />
               <td className="px-3 py-1.5 text-right">{totals.rows.toLocaleString('ru-RU')}</td>

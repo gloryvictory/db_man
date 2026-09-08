@@ -1,4 +1,4 @@
-import type { StoredConnection, TableMeta, ColumnMeta, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow } from './types';
+import type { StoredConnection, TableMeta, ColumnMeta, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats } from './types';
 
 const BASE = '/api';
 const enc = encodeURIComponent;
@@ -109,6 +109,14 @@ export const api = {
     http<SchemaTableRow[]>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/analysis`),
   databaseAnalysis: (id: string, db: string) =>
     http<DatabaseTableRow[]>(`/connections/${id}/databases/${enc(db)}/analysis`),
+  schemaService: (id: string, db: string, schema: string) =>
+    http<SchemaStats>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/service`),
+  schemaVacuum: (id: string, db: string, schema: string) =>
+    http<{ ok: boolean }>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/service/vacuum`, { method: 'POST' }),
+  schemaAnalyze: (id: string, db: string, schema: string) =>
+    http<{ ok: boolean }>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/service/analyze`, { method: 'POST' }),
+  schemaReindex: (id: string, db: string, schema: string) =>
+    http<{ ok: boolean }>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/service/reindex`, { method: 'POST' }),
   logs: (limit: number, offset: number) => http<LogsResult>(`/logs?limit=${limit}&offset=${offset}`),
   exportUrl: (id: string, db: string, schema: string, table: string, format: 'xlsx' | 'csv') =>
     `/api/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables/${enc(table)}/export?format=${format}`,

@@ -32,7 +32,7 @@ interface DbManState {
   selectedSchema: { db: string; schema: string } | null;
   view: ViewKind;
   dbView: 'info' | 'service';
-  schemaView: 'info' | 'analysis';
+  schemaView: 'info' | 'service' | 'analysis';
   columns: ColumnMeta[];
   rows: unknown[][];
   total: number;
@@ -62,7 +62,7 @@ interface DbManState {
   selectSchema: (db: string, schema: string) => void;
   setView: (v: ViewKind) => void;
   setDbView: (v: 'info' | 'service') => void;
-  setSchemaView: (v: 'info' | 'analysis') => void;
+  setSchemaView: (v: 'info' | 'service' | 'analysis') => void;
   setPage: (p: number) => void;
   setPageSize: (n: number) => void;
   setSort: (col: string) => void;

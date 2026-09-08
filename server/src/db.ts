@@ -721,6 +721,7 @@ export interface SchemaInfo {
 export interface SchemaTableRow {
   name: string;
   kind: string;
+  comment: string | null;
   column_count: number;
   row_estimate: number;
   table_size: number;
@@ -789,6 +790,7 @@ export async function getSchemaAnalysis(connId: string, db: string, schema: stri
     `SELECT
        c.relname AS name,
        CASE c.relkind WHEN 'r' THEN 'table' WHEN 'p' THEN 'partitioned' WHEN 'v' THEN 'view' WHEN 'm' THEN 'materialized' ELSE c.relkind::text END AS kind,
+       obj_description(c.oid, 'pg_class') AS comment,
        GREATEST(c.reltuples::bigint, 0) AS row_estimate,
        pg_relation_size(c.oid) AS table_size,
        pg_indexes_size(c.oid) AS indexes_size,
@@ -807,6 +809,7 @@ export async function getSchemaAnalysis(connId: string, db: string, schema: stri
   return res.rows.map((r: Record<string, unknown>) => ({
     name: String(r.name),
     kind: String(r.kind),
+    comment: sanitize(r.comment) as string | null,
     column_count: Number(r.column_count),
     row_estimate: Number(r.row_estimate),
     table_size: Number(r.table_size),
@@ -821,6 +824,7 @@ export interface DatabaseTableRow {
   schema: string;
   name: string;
   kind: string;
+  comment: string | null;
   column_count: number;
   row_estimate: number;
   table_size: number;
@@ -839,6 +843,7 @@ export async function getDatabaseAnalysis(connId: string, db: string): Promise<D
        n.nspname AS schema,
        c.relname AS name,
        CASE c.relkind WHEN 'r' THEN 'table' WHEN 'p' THEN 'partitioned' WHEN 'v' THEN 'view' WHEN 'm' THEN 'materialized' ELSE c.relkind::text END AS kind,
+       obj_description(c.oid, 'pg_class') AS comment,
        (SELECT count(*) FROM pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped) AS column_count,
        GREATEST(c.reltuples::bigint, 0) AS row_estimate,
        pg_relation_size(c.oid) AS table_size,
@@ -858,6 +863,7 @@ export async function getDatabaseAnalysis(connId: string, db: string): Promise<D
     schema: String(r.schema),
     name: String(r.name),
     kind: String(r.kind),
+    comment: sanitize(r.comment) as string | null,
     column_count: Number(r.column_count),
     row_estimate: Number(r.row_estimate),
     table_size: Number(r.table_size),
@@ -866,4 +872,101 @@ export async function getDatabaseAnalysis(connId: string, db: string): Promise<D
     last_vacuum: sanitize(r.last_vacuum) as string | null,
     last_analyze: sanitize(r.last_analyze) as string | null,
   }));
+}
+
+export interface SchemaStats {
+  table_count: number;
+  live_tup: number;
+  dead_tup: number;
+  n_tup_ins: number;
+  n_tup_upd: number;
+  n_tup_del: number;
+  vacuum_count: number;
+  autovacuum_count: number;
+  analyze_count: number;
+  autoanalyze_count: number;
+  last_vacuum: string | null;
+  last_autovacuum: string | null;
+  last_analyze: string | null;
+  last_autoanalyze: string | null;
+}
+
+export async function getSchemaStats(connId: string, db: string, schema: string): Promise<SchemaStats> {
+  assertIdent(schema);
+  const pool = getPool(connId, db);
+  const res = await q(
+    pool,
+    { connId, db },
+    `SELECT
+       (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = $1 AND c.relkind IN ('r','p','m')) AS table_count,
+       COALESCE(sum(st.n_live_tup), 0) AS live_tup,
+       COALESCE(sum(st.n_dead_tup), 0) AS dead_tup,
+       COALESCE(sum(st.n_tup_ins), 0) AS n_tup_ins,
+       COALESCE(sum(st.n_tup_upd), 0) AS n_tup_upd,
+       COALESCE(sum(st.n_tup_del), 0) AS n_tup_del,
+       COALESCE(sum(st.vacuum_count), 0) AS vacuum_count,
+       COALESCE(sum(st.autovacuum_count), 0) AS autovacuum_count,
+       COALESCE(sum(st.analyze_count), 0) AS analyze_count,
+       COALESCE(sum(st.autoanalyze_count), 0) AS autoanalyze_count,
+       max(st.last_vacuum) AS last_vacuum,
+       max(st.last_autovacuum) AS last_autovacuum,
+       max(st.last_analyze) AS last_analyze,
+       max(st.last_autoanalyze) AS last_autoanalyze
+     FROM pg_stat_all_tables st
+     WHERE st.schemaname = $1`,
+    [schema]
+  );
+  const r = res.rows[0] as Record<string, unknown>;
+  return {
+    table_count: Number(r.table_count),
+    live_tup: Number(r.live_tup),
+    dead_tup: Number(r.dead_tup),
+    n_tup_ins: Number(r.n_tup_ins),
+    n_tup_upd: Number(r.n_tup_upd),
+    n_tup_del: Number(r.n_tup_del),
+    vacuum_count: Number(r.vacuum_count),
+    autovacuum_count: Number(r.autovacuum_count),
+    analyze_count: Number(r.analyze_count),
+    autoanalyze_count: Number(r.autoanalyze_count),
+    last_vacuum: sanitize(r.last_vacuum) as string | null,
+    last_autovacuum: sanitize(r.last_autovacuum) as string | null,
+    last_analyze: sanitize(r.last_analyze) as string | null,
+    last_autoanalyze: sanitize(r.last_autoanalyze) as string | null,
+  };
+}
+
+async function schemaTableList(pool: Pool, meta: { connId: string; db: string }, schema: string): Promise<string[]> {
+  const res = await q(
+    pool,
+    meta,
+    `SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE n.nspname = $1 AND c.relkind IN ('r','p') ORDER BY c.relname`,
+    [schema]
+  );
+  return res.rows.map((r: Record<string, unknown>) => `${quote(schema)}.${quote(String(r.relname))}`);
+}
+
+export async function vacuumSchema(connId: string, db: string, schema: string): Promise<void> {
+  assertIdent(schema);
+  const pool = getPool(connId, db);
+  const meta = { connId, db };
+  const names = await schemaTableList(pool, meta, schema);
+  if (!names.length) return;
+  await q(pool, meta, `VACUUM ${names.join(', ')}`);
+}
+
+export async function analyzeSchema(connId: string, db: string, schema: string): Promise<void> {
+  assertIdent(schema);
+  const pool = getPool(connId, db);
+  const meta = { connId, db };
+  const names = await schemaTableList(pool, meta, schema);
+  if (!names.length) return;
+  await q(pool, meta, `ANALYZE ${names.join(', ')}`);
+}
+
+export async function reindexSchema(connId: string, db: string, schema: string): Promise<void> {
+  assertIdent(schema);
+  const pool = getPool(connId, db);
+  await q(pool, { connId, db }, `REINDEX SCHEMA ${quote(schema)}`);
 }

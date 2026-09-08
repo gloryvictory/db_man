@@ -170,6 +170,7 @@ export interface SchemaInfo {
 export interface SchemaTableRow {
   name: string;
   kind: string;
+  comment: string | null;
   column_count: number;
   row_estimate: number;
   table_size: number;
@@ -183,6 +184,7 @@ export interface DatabaseTableRow {
   schema: string;
   name: string;
   kind: string;
+  comment: string | null;
   column_count: number;
   row_estimate: number;
   table_size: number;
@@ -190,4 +192,21 @@ export interface DatabaseTableRow {
   total_size: number;
   last_vacuum: string | null;
   last_analyze: string | null;
+}
+
+export interface SchemaStats {
+  table_count: number;
+  live_tup: number;
+  dead_tup: number;
+  n_tup_ins: number;
+  n_tup_upd: number;
+  n_tup_del: number;
+  vacuum_count: number;
+  autovacuum_count: number;
+  analyze_count: number;
+  autoanalyze_count: number;
+  last_vacuum: string | null;
+  last_autovacuum: string | null;
+  last_analyze: string | null;
+  last_autoanalyze: string | null;
 }
