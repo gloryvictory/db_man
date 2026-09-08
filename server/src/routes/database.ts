@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getDatabaseInfo, getDatabaseStats, vacuumDatabase, analyzeDatabase, reindexDatabase } from '../db';
+import { getDatabaseInfo, getDatabaseStats, getDatabaseAnalysis, vacuumDatabase, analyzeDatabase, reindexDatabase } from '../db';
 
 const r = Router();
 
@@ -14,6 +14,14 @@ r.get('/:connId/databases/:db/info', async (req, res, next) => {
 r.get('/:connId/databases/:db/service', async (req, res, next) => {
   try {
     res.json(await getDatabaseStats(req.params.connId, req.params.db));
+  } catch (e) {
+    next(e);
+  }
+});
+
+r.get('/:connId/databases/:db/analysis', async (req, res, next) => {
+  try {
+    res.json(await getDatabaseAnalysis(req.params.connId, req.params.db));
   } catch (e) {
     next(e);
   }

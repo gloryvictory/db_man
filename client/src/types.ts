@@ -178,3 +178,16 @@ export interface SchemaTableRow {
   last_vacuum: string | null;
   last_analyze: string | null;
 }
+
+export interface DatabaseTableRow {
+  schema: string;
+  name: string;
+  kind: string;
+  column_count: number;
+  row_estimate: number;
+  table_size: number;
+  indexes_size: number;
+  total_size: number;
+  last_vacuum: string | null;
+  last_analyze: string | null;
+}

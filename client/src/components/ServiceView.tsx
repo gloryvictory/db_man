@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Eraser, Sparkles, RotateCcw } from 'lucide-react';
+import { Eraser, Sparkles, RotateCcw, Download } from 'lucide-react';
 import { useStore } from '../store';
 import { api } from '../api';
 import { Button, Loader, Badge, Info } from './ui';
 import { formatDateRel } from '../lib/format';
+import { exportToExcel } from '../lib/export';
 import type { ServiceResult } from '../types';
 
 export default function ServiceView() {
@@ -43,6 +44,21 @@ export default function ServiceView() {
     } finally {
       setBusy(null);
     }
+  }
+
+  function exportIndexes() {
+    const header = ['Индекс', 'Тип', 'Размер', 'Уникальный', 'Primary', 'Valid', 'Скан.', 'Определение'];
+    const rows = (data?.indexes ?? []).map((ix) => [
+      ix.name,
+      ix.access_method,
+      ix.size,
+      ix.is_unique ? 'да' : 'нет',
+      ix.is_primary ? 'да' : 'нет',
+      ix.is_valid ? 'да' : 'нет',
+      ix.idx_scan,
+      ix.definition,
+    ]);
+    exportToExcel(`${sel?.table ?? 'table'}_indexes`, header, rows);
   }
 
   if (!id || !sel) return null;
@@ -87,6 +103,10 @@ export default function ServiceView() {
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[#8b93a7]">Индексы</h2>
               <span className="font-mono text-[11px] text-[#5c6478]">{data?.indexes.length ?? 0}</span>
               <div className="flex-1" />
+              <Button size="xs" variant="subtle" onClick={exportIndexes}>
+                <Download size={12} />
+                Экспорт
+              </Button>
               <Button
                 size="xs"
                 variant="subtle"

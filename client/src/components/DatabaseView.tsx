@@ -4,14 +4,16 @@ import { Eraser, Sparkles, RotateCcw } from 'lucide-react';
 import { useStore } from '../store';
 import { api } from '../api';
 import { Button, Loader, Tabs, Info } from './ui';
+import AnalysisTable from './AnalysisTable';
 import { formatDateRel, formatBytes } from '../lib/format';
-import type { DatabaseInfo, DatabaseStats } from '../types';
+import type { DatabaseInfo, DatabaseStats, DatabaseTableRow } from '../types';
 
 export default function DatabaseView() {
   const store = useStore();
   const [info, setInfo] = useState<DatabaseInfo | null>(null);
   const [stats, setStats] = useState<DatabaseStats | null>(null);
-  const [view, setView] = useState<'info' | 'service'>('info');
+  const [analysisRows, setAnalysisRows] = useState<DatabaseTableRow[]>([]);
+  const [view, setView] = useState<'info' | 'service' | 'analysis'>('info');
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -22,9 +24,14 @@ export default function DatabaseView() {
     if (!id || !db) return;
     setLoading(true);
     try {
-      const [i, s] = await Promise.all([api.databaseInfo(id, db), api.databaseStats(id, db)]);
+      const [i, s, a] = await Promise.all([
+        api.databaseInfo(id, db),
+        api.databaseStats(id, db),
+        api.databaseAnalysis(id, db),
+      ]);
       setInfo(i);
       setStats(s);
+      setAnalysisRows(a);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Ошибка');
     } finally {
@@ -66,10 +73,11 @@ export default function DatabaseView() {
         <div className="mt-3">
           <Tabs
             value={view}
-            onChange={(v) => setView(v as 'info' | 'service')}
+            onChange={(v) => setView(v as 'info' | 'service' | 'analysis')}
             items={[
               { value: 'info', label: 'Информация' },
               { value: 'service', label: 'Сервис' },
+              { value: 'analysis', label: 'Анализ' },
             ]}
           />
         </div>
@@ -114,7 +122,7 @@ export default function DatabaseView() {
             ) : (
               <div className="text-[12px] text-[#6b7390]">Нет данных</div>
             )
-          ) : (
+          ) : view === 'service' ? (
             <div className="flex flex-col gap-5">
               <section>
                 <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#8b93a7]">Обслуживание</h2>
@@ -159,6 +167,8 @@ export default function DatabaseView() {
                 </div>
               </section>
             </div>
+          ) : (
+            <AnalysisTable rows={analysisRows} showSchema exportName={`${db}_tables`} />
           )}
         </div>
       )}

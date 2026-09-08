@@ -816,3 +816,54 @@ export async function getSchemaAnalysis(connId: string, db: string, schema: stri
     last_analyze: sanitize(r.last_analyze) as string | null,
   }));
 }
+
+export interface DatabaseTableRow {
+  schema: string;
+  name: string;
+  kind: string;
+  column_count: number;
+  row_estimate: number;
+  table_size: number;
+  indexes_size: number;
+  total_size: number;
+  last_vacuum: string | null;
+  last_analyze: string | null;
+}
+
+export async function getDatabaseAnalysis(connId: string, db: string): Promise<DatabaseTableRow[]> {
+  const pool = getPool(connId, db);
+  const res = await q(
+    pool,
+    { connId, db },
+    `SELECT
+       n.nspname AS schema,
+       c.relname AS name,
+       CASE c.relkind WHEN 'r' THEN 'table' WHEN 'p' THEN 'partitioned' WHEN 'v' THEN 'view' WHEN 'm' THEN 'materialized' ELSE c.relkind::text END AS kind,
+       (SELECT count(*) FROM pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped) AS column_count,
+       GREATEST(c.reltuples::bigint, 0) AS row_estimate,
+       pg_relation_size(c.oid) AS table_size,
+       pg_indexes_size(c.oid) AS indexes_size,
+       pg_total_relation_size(c.oid) AS total_size,
+       st.last_vacuum,
+       st.last_analyze
+     FROM pg_class c
+     JOIN pg_namespace n ON n.oid = c.relnamespace
+     LEFT JOIN pg_stat_all_tables st ON st.relid = c.oid
+     WHERE n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname NOT LIKE 'pg\\_%' ESCAPE '\\'
+       AND c.relkind IN ('r', 'p', 'v', 'm')
+     ORDER BY n.nspname, c.relname`
+  );
+
+  return res.rows.map((r: Record<string, unknown>) => ({
+    schema: String(r.schema),
+    name: String(r.name),
+    kind: String(r.kind),
+    column_count: Number(r.column_count),
+    row_estimate: Number(r.row_estimate),
+    table_size: Number(r.table_size),
+    indexes_size: Number(r.indexes_size),
+    total_size: Number(r.total_size),
+    last_vacuum: sanitize(r.last_vacuum) as string | null,
+    last_analyze: sanitize(r.last_analyze) as string | null,
+  }));
+}

@@ -1,10 +1,36 @@
+import { Download } from 'lucide-react';
 import { useStore } from '../store';
+import { Button } from './ui';
+import { exportToExcel } from '../lib/export';
 
 export default function StructureView() {
   const store = useStore();
 
+  function doExport() {
+    const header = ['Столбец', 'Тип', 'NOT NULL', 'Default', 'Ключ', 'Ссылка (FK)'];
+    const data = store.columns.map((c) => [
+      c.name,
+      c.data_type,
+      c.not_null ? 'NOT NULL' : '',
+      c.default_value ?? '',
+      c.is_primary ? 'PK' : c.foreign_ref ? 'FK' : '',
+      c.foreign_ref ?? '',
+    ]);
+    exportToExcel(`${store.selected?.table ?? 'table'}_columns`, header, data);
+  }
+
   return (
     <div className="min-h-0 flex-1 overflow-auto p-4">
+      <div className="mb-2 flex items-center gap-2">
+        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[#8b93a7]">Колонки</h2>
+        <span className="font-mono text-[11px] text-[#5c6478]">{store.columns.length}</span>
+        <div className="flex-1" />
+        <Button size="xs" variant="subtle" onClick={doExport}>
+          <Download size={12} />
+          Экспорт
+        </Button>
+      </div>
+
       <table className="w-full border-collapse font-mono text-[12px]">
         <thead>
           <tr>
