@@ -548,3 +548,158 @@ export async function createSpatialIndex(connId: string, db: string, schema: str
     `CREATE INDEX IF NOT EXISTS ${quote(idxName)} ON ${quote(schema)}.${quote(table)} USING GIST (${quote(column)})`
   );
 }
+
+// ---------- уровень базы данных ----------
+
+export interface DatabaseInfo {
+  name: string;
+  owner: string;
+  encoding: string;
+  collation: string;
+  ctype: string;
+  connection_limit: number;
+  total_size: string;
+  total_size_bytes: number;
+  table_count: number;
+  index_count: number;
+  schema_count: number;
+  tables_size: string;
+  indexes_size: string;
+  active_connections: number;
+}
+
+export interface DatabaseStats {
+  numbackends: number;
+  xact_commit: number;
+  xact_rollback: number;
+  blks_read: number;
+  blks_hit: number;
+  tup_returned: number;
+  tup_fetched: number;
+  tup_inserted: number;
+  tup_updated: number;
+  tup_deleted: number;
+  conflicts: number;
+  temp_files: number;
+  temp_bytes: number;
+  deadlocks: number;
+  blk_read_time: number;
+  blk_write_time: number;
+  stats_reset: string | null;
+}
+
+export async function getDatabaseInfo(connId: string, db: string): Promise<DatabaseInfo> {
+  const pool = getPool(connId, db);
+
+  const meta = await q(
+    pool,
+    { connId, db },
+    `SELECT
+       d.datname AS name,
+       r.rolname AS owner,
+       pg_encoding_to_char(d.encoding) AS encoding,
+       d.datcollate AS collation,
+       d.datctype AS ctype,
+       d.datconnlimit AS connection_limit,
+       pg_size_pretty(pg_database_size(d.datname)) AS total_size,
+       pg_database_size(d.datname) AS total_size_bytes
+     FROM pg_database d
+     JOIN pg_roles r ON r.oid = d.datdba
+     WHERE d.datname = $1`,
+    [db]
+  );
+
+  const agg = await q(
+    pool,
+    { connId, db },
+    `SELECT
+       (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg\\_%' ESCAPE '\\'
+          AND c.relkind IN ('r','p','m')) AS table_count,
+       (SELECT count(*) FROM pg_index i JOIN pg_class c ON c.oid = i.indrelid JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg\\_%' ESCAPE '\\') AS index_count,
+       (SELECT count(*) FROM pg_namespace
+        WHERE nspname NOT IN ('pg_catalog','information_schema') AND nspname NOT LIKE 'pg\\_%' ESCAPE '\\') AS schema_count,
+       (SELECT pg_size_pretty(COALESCE(sum(pg_total_relation_size(c.oid)), 0))
+        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg\\_%' ESCAPE '\\'
+          AND c.relkind IN ('r','p','m')) AS tables_size,
+       (SELECT pg_size_pretty(COALESCE(sum(pg_indexes_size(c.oid)), 0))
+        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg\\_%' ESCAPE '\\'
+          AND c.relkind IN ('r','p','m')) AS indexes_size,
+       (SELECT count(*) FROM pg_stat_activity WHERE datname = $1) AS active_connections`,
+    [db]
+  );
+
+  const m = meta.rows[0] as Record<string, unknown>;
+  const a = agg.rows[0] as Record<string, unknown>;
+
+  return {
+    name: String(m.name),
+    owner: String(m.owner),
+    encoding: String(m.encoding),
+    collation: String(m.collation),
+    ctype: String(m.ctype),
+    connection_limit: Number(m.connection_limit),
+    total_size: String(m.total_size),
+    total_size_bytes: Number(m.total_size_bytes),
+    table_count: Number(a.table_count),
+    index_count: Number(a.index_count),
+    schema_count: Number(a.schema_count),
+    tables_size: String(a.tables_size),
+    indexes_size: String(a.indexes_size),
+    active_connections: Number(a.active_connections),
+  };
+}
+
+export async function getDatabaseStats(connId: string, db: string): Promise<DatabaseStats | null> {
+  const pool = getPool(connId, db);
+  const res = await q(
+    pool,
+    { connId, db },
+    `SELECT numbackends, xact_commit, xact_rollback, blks_read, blks_hit,
+            tup_returned, tup_fetched, tup_inserted, tup_updated, tup_deleted,
+            conflicts, temp_files, temp_bytes, deadlocks,
+            blk_read_time, blk_write_time, stats_reset
+     FROM pg_stat_database
+     WHERE datname = $1`,
+    [db]
+  );
+  const r = res.rows[0] as Record<string, unknown> | undefined;
+  if (!r) return null;
+  return {
+    numbackends: Number(r.numbackends),
+    xact_commit: Number(r.xact_commit),
+    xact_rollback: Number(r.xact_rollback),
+    blks_read: Number(r.blks_read),
+    blks_hit: Number(r.blks_hit),
+    tup_returned: Number(r.tup_returned),
+    tup_fetched: Number(r.tup_fetched),
+    tup_inserted: Number(r.tup_inserted),
+    tup_updated: Number(r.tup_updated),
+    tup_deleted: Number(r.tup_deleted),
+    conflicts: Number(r.conflicts),
+    temp_files: Number(r.temp_files),
+    temp_bytes: Number(r.temp_bytes),
+    deadlocks: Number(r.deadlocks),
+    blk_read_time: Number(r.blk_read_time),
+    blk_write_time: Number(r.blk_write_time),
+    stats_reset: sanitize(r.stats_reset) as string | null,
+  };
+}
+
+export async function vacuumDatabase(connId: string, db: string): Promise<void> {
+  const pool = getPool(connId, db);
+  await q(pool, { connId, db }, 'VACUUM');
+}
+
+export async function analyzeDatabase(connId: string, db: string): Promise<void> {
+  const pool = getPool(connId, db);
+  await q(pool, { connId, db }, 'ANALYZE');
+}
+
+export async function reindexDatabase(connId: string, db: string): Promise<void> {
+  const pool = getPool(connId, db);
+  await q(pool, { connId, db }, `REINDEX DATABASE ${quote(db)}`);
+}

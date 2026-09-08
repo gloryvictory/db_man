@@ -117,3 +117,40 @@ export interface ServiceResult {
   geometry_columns: string[];
   spatial_indexes: SpatialIndexInfo[];
 }
+
+export interface DatabaseInfo {
+  name: string;
+  owner: string;
+  encoding: string;
+  collation: string;
+  ctype: string;
+  connection_limit: number;
+  total_size: string;
+  total_size_bytes: number;
+  table_count: number;
+  index_count: number;
+  schema_count: number;
+  tables_size: string;
+  indexes_size: string;
+  active_connections: number;
+}
+
+export interface DatabaseStats {
+  numbackends: number;
+  xact_commit: number;
+  xact_rollback: number;
+  blks_read: number;
+  blks_hit: number;
+  tup_returned: number;
+  tup_fetched: number;
+  tup_inserted: number;
+  tup_updated: number;
+  tup_deleted: number;
+  conflicts: number;
+  temp_files: number;
+  temp_bytes: number;
+  deadlocks: number;
+  blk_read_time: number;
+  blk_write_time: number;
+  stats_reset: string | null;
+}

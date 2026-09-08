@@ -10,6 +10,8 @@
 
 - **Дерево БД** — иерархия подключений, баз, схем и таблиц с ленивой загрузкой
   (данные подгружаются при раскрытии) и оценкой числа строк у каждой таблицы.
+  Клик по базе данных открывает панели «Информация» (размер, счётчики, кодировка)
+  и «Сервис» (статистика + VACUUM/ANALYZE/REINDEX DATABASE).
 - **Данные** — табличная сетка на TanStack Table: серверная сортировка, фильтр
   по значению, пагинация (LIMIT/offset), экспорт в Excel и CSV.
 - **Структура** — колонки с типами, NOT NULL, DEFAULT, первичными и внешними ключами.
@@ -97,5 +99,10 @@ db_man/
 | POST | `…/tables/:t/service/vacuum` | `VACUUM` таблицы |
 | POST | `…/tables/:t/service/analyze` | `ANALYZE` таблицы |
 | POST | `…/tables/:t/service/spatial-index` | создать пространственный (GiST) индекс (`{ column }`) |
+| GET | `/api/connections/:id/databases/:db/info` | информация о БД (размер, счётчики, кодировка) |
+| GET | `/api/connections/:id/databases/:db/service` | статистика БД (`pg_stat_database`) |
+| POST | `/api/connections/:id/databases/:db/service/vacuum` | `VACUUM` всей БД |
+| POST | `/api/connections/:id/databases/:db/service/analyze` | `ANALYZE` всей БД |
+| POST | `/api/connections/:id/databases/:db/service/reindex` | `REINDEX DATABASE` (все индексы БД) |
 | GET | `/api/logs` | журнал запросов (пагинация: `limit`/`offset`) |
 | GET | `/api/logs/export?format=xlsx\|csv&limit=&offset=` | выгрузка журнала (страница или весь) |

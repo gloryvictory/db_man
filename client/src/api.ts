@@ -1,4 +1,4 @@
-import type { StoredConnection, TableMeta, ColumnMeta, RowsResult, StatsRow, LogsResult, ServiceResult } from './types';
+import type { StoredConnection, TableMeta, ColumnMeta, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats } from './types';
 
 const BASE = '/api';
 const enc = encodeURIComponent;
@@ -93,6 +93,16 @@ export const api = {
       `/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables/${enc(table)}/service/spatial-index`,
       { method: 'POST', body: JSON.stringify({ column }) }
     ),
+  databaseInfo: (id: string, db: string) =>
+    http<DatabaseInfo>(`/connections/${id}/databases/${enc(db)}/info`),
+  databaseStats: (id: string, db: string) =>
+    http<DatabaseStats | null>(`/connections/${id}/databases/${enc(db)}/service`),
+  dbVacuum: (id: string, db: string) =>
+    http<{ ok: boolean }>(`/connections/${id}/databases/${enc(db)}/service/vacuum`, { method: 'POST' }),
+  dbAnalyze: (id: string, db: string) =>
+    http<{ ok: boolean }>(`/connections/${id}/databases/${enc(db)}/service/analyze`, { method: 'POST' }),
+  dbReindex: (id: string, db: string) =>
+    http<{ ok: boolean }>(`/connections/${id}/databases/${enc(db)}/service/reindex`, { method: 'POST' }),
   logs: (limit: number, offset: number) => http<LogsResult>(`/logs?limit=${limit}&offset=${offset}`),
   exportUrl: (id: string, db: string, schema: string, table: string, format: 'xlsx' | 'csv') =>
     `/api/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables/${enc(table)}/export?format=${format}`,

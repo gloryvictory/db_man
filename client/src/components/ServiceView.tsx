@@ -3,54 +3,9 @@ import toast from 'react-hot-toast';
 import { Eraser, Sparkles, RotateCcw } from 'lucide-react';
 import { useStore } from '../store';
 import { api } from '../api';
-import { Button, Loader, Badge } from './ui';
+import { Button, Loader, Badge, Info } from './ui';
+import { formatDateRel } from '../lib/format';
 import type { ServiceResult } from '../types';
-
-function plural(n: number, one: string, few: string, many: string): string {
-  const m10 = n % 10;
-  const m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return one;
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
-  return many;
-}
-
-function relativeLabel(s: string): string {
-  const d = new Date(s);
-  if (isNaN(d.getTime())) return '';
-  const now = new Date();
-  const startOfDay = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
-  const days = Math.round((startOfDay(now) - startOfDay(d)) / 86400000);
-  if (days <= 0) return 'сегодня';
-  if (days === 1) return 'вчера';
-  if (days < 7) return `${days} ${plural(days, 'день', 'дня', 'дней')} назад`;
-  if (days < 30) {
-    const w = Math.floor(days / 7);
-    return `${w} ${plural(w, 'неделю', 'недели', 'недель')} назад`;
-  }
-  if (days < 365) {
-    const m = Math.floor(days / 30);
-    return `${m} ${plural(m, 'месяц', 'месяца', 'месяцев')} назад`;
-  }
-  const y = Math.floor(days / 365);
-  return `${y} ${plural(y, 'год', 'года', 'лет')} назад`;
-}
-
-function fmtDate(s: string | null | undefined): string {
-  if (!s) return '—';
-  const d = new Date(s);
-  if (isNaN(d.getTime())) return s;
-  const rel = relativeLabel(s);
-  return rel ? `${d.toLocaleString('ru-RU')} (${rel})` : d.toLocaleString('ru-RU');
-}
-
-function Info({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
-  return (
-    <div>
-      <div className="text-[11px] text-[#5c6478]">{label}</div>
-      <div className={`text-[12.5px] text-[#e7eaf0] ${mono ? 'font-mono' : ''}`}>{value}</div>
-    </div>
-  );
-}
 
 export default function ServiceView() {
   const store = useStore();
@@ -268,9 +223,9 @@ export default function ServiceView() {
                       VACUUM
                     </Button>
                   </div>
-                  <Info label="Последний (вручную)" value={fmtDate(st?.last_vacuum)} />
+                  <Info label="Последний (вручную)" value={formatDateRel(st?.last_vacuum)} />
                   <div className="mt-1.5">
-                    <Info label="Последний (autovacuum)" value={fmtDate(st?.last_autovacuum)} />
+                    <Info label="Последний (autovacuum)" value={formatDateRel(st?.last_autovacuum)} />
                   </div>
                   <div className="mt-1.5">
                     <Info label="Запусков (вручную / авто)" value={`${st?.vacuum_count ?? 0} / ${st?.autovacuum_count ?? 0}`} mono />
@@ -289,9 +244,9 @@ export default function ServiceView() {
                       ANALYZE
                     </Button>
                   </div>
-                  <Info label="Последний (вручную)" value={fmtDate(st?.last_analyze)} />
+                  <Info label="Последний (вручную)" value={formatDateRel(st?.last_analyze)} />
                   <div className="mt-1.5">
-                    <Info label="Последний (autoanalyze)" value={fmtDate(st?.last_autoanalyze)} />
+                    <Info label="Последний (autoanalyze)" value={formatDateRel(st?.last_autoanalyze)} />
                   </div>
                   <div className="mt-1.5">
                     <Info label="Запусков (вручную / авто)" value={`${st?.analyze_count ?? 0} / ${st?.autoanalyze_count ?? 0}`} mono />

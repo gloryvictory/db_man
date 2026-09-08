@@ -201,3 +201,13 @@ export function Tabs({
 export function Badge({ kind, children }: { kind: 'pk' | 'fk' | 'kind'; children: ReactNode }) {
   return <span className={`badge ${kind}`}>{children}</span>;
 }
+
+/* ---------- Info (label + value) ---------- */
+export function Info({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div>
+      <div className="text-[11px] text-[#5c6478]">{label}</div>
+      <div className={`text-[12.5px] text-[#e7eaf0] ${mono ? 'font-mono' : ''}`}>{value}</div>
+    </div>
+  );
+}

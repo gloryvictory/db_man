@@ -28,7 +28,9 @@ interface DbManState {
   loadingNodes: Record<string, boolean>;
 
   selected: { db: string; schema: string; table: string } | null;
+  selectedDb: string | null;
   view: ViewKind;
+  dbView: 'info' | 'service';
   columns: ColumnMeta[];
   rows: unknown[][];
   total: number;
@@ -54,7 +56,9 @@ interface DbManState {
   toggleNode: (node: TreeNode) => Promise<void>;
   loadChildren: (node: TreeNode) => Promise<void>;
   selectTable: (db: string, schema: string, table: string) => Promise<void>;
+  selectDatabase: (db: string) => void;
   setView: (v: ViewKind) => void;
+  setDbView: (v: 'info' | 'service') => void;
   setPage: (p: number) => void;
   setPageSize: (n: number) => void;
   setSort: (col: string) => void;
@@ -71,7 +75,9 @@ export const useStore = create<DbManState>((set, get) => ({
   expanded: {},
   loadingNodes: {},
   selected: null,
+  selectedDb: null,
   view: 'data',
+  dbView: 'info',
   columns: [],
   rows: [],
   total: 0,
@@ -87,7 +93,7 @@ export const useStore = create<DbManState>((set, get) => ({
   },
 
   setActiveConn: (id) =>
-    set({ activeConnId: id, selected: null, columns: [], rows: [], total: 0 }),
+    set({ activeConnId: id, selected: null, selectedDb: null, columns: [], rows: [], total: 0 }),
 
   connect: async (id, password) => {
     set({ connecting: true });
@@ -198,6 +204,7 @@ export const useStore = create<DbManState>((set, get) => ({
     if (!connId) return;
     set({
       selected: { db, schema, table },
+      selectedDb: null,
       view: 'data',
       page: 0,
       sort: null,
@@ -217,6 +224,9 @@ export const useStore = create<DbManState>((set, get) => ({
   },
 
   setView: (v) => set({ view: v }),
+  setDbView: (v) => set({ dbView: v }),
+  selectDatabase: (db) =>
+    set({ selectedDb: db, selected: null, columns: [], rows: [], total: 0, dbView: 'info' }),
   setPage: (p) => set({ page: p }),
   setPageSize: (n) => set({ pageSize: n, page: 0 }),
   setSort: (col) =>

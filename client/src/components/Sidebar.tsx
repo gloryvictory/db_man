@@ -23,10 +23,11 @@ function NodeRow({ node, depth }: { node: TreeNode; depth: number }) {
   const children = store.children[node.id];
   const hasChildren = node.kind !== 'table';
   const selected =
-    node.kind === 'table' &&
-    store.selected?.table === node.table &&
-    store.selected?.schema === node.schema &&
-    store.selected?.db === node.db;
+    (node.kind === 'table' &&
+      store.selected?.table === node.table &&
+      store.selected?.schema === node.schema &&
+      store.selected?.db === node.db) ||
+    (node.kind === 'db' && store.selectedDb === node.db);
 
   return (
     <div>
@@ -35,11 +36,13 @@ function NodeRow({ node, depth }: { node: TreeNode; depth: number }) {
           selected ? 'bg-[#0f2b21] text-[#35c98e]' : 'text-[#e7eaf0]'
         }`}
         style={{ paddingLeft: 6 + depth * 14 }}
-        onClick={() =>
-          node.kind === 'table'
-            ? store.selectTable(node.db!, node.schema!, node.table!)
-            : store.toggleNode(node)
-        }
+        onClick={() => {
+          if (node.kind === 'table') store.selectTable(node.db!, node.schema!, node.table!);
+          else if (node.kind === 'db') {
+            store.toggleNode(node);
+            store.selectDatabase(node.db!);
+          } else store.toggleNode(node);
+        }}
       >
         <span
           className={`flex w-3 shrink-0 items-center justify-center text-[9px] text-[#5c6478] transition-transform ${

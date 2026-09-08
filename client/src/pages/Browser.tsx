@@ -5,6 +5,7 @@ import DataView from '../components/DataView';
 import StructureView from '../components/StructureView';
 import SqlView from '../components/SqlView';
 import ServiceView from '../components/ServiceView';
+import DatabaseView from '../components/DatabaseView';
 import { useStore } from '../store';
 import { api } from '../api';
 import { Button, Input, Tabs, Badge } from '../components/ui';
@@ -44,7 +45,9 @@ export default function Browser() {
     <div className="flex h-full">
       <Sidebar />
       <main className="flex min-w-0 flex-1 flex-col bg-[#0e1015]">
-        {!sel ? (
+        {store.selectedDb && !sel ? (
+          <DatabaseView key={store.selectedDb} />
+        ) : !sel ? (
           <div className="flex h-full items-center justify-center text-sm text-[#5c6478]">
             Выберите таблицу слева
           </div>
