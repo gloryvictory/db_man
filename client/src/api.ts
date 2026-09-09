@@ -1,4 +1,4 @@
-import type { StoredConnection, TableMeta, ColumnMeta, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult } from './types';
+import type { StoredConnection, TableMeta, ColumnMeta, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow } from './types';
 
 const BASE = '/api';
 const enc = encodeURIComponent;
@@ -110,6 +110,8 @@ export const api = {
     http<SchemaTableRow[]>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/analysis`),
   databaseAnalysis: (id: string, db: string) =>
     http<DatabaseTableRow[]>(`/connections/${id}/databases/${enc(db)}/analysis`),
+  databaseConfig: (id: string, db: string) =>
+    http<ServerConfigRow[]>(`/connections/${id}/databases/${enc(db)}/config`),
   schemaService: (id: string, db: string, schema: string) =>
     http<SchemaStats>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/service`),
   schemaVacuum: (id: string, db: string, schema: string) =>

@@ -3,17 +3,20 @@ import toast from 'react-hot-toast';
 import { Eraser, Sparkles, RotateCcw } from 'lucide-react';
 import { useStore } from '../store';
 import { api } from '../api';
-import { Button, Loader, Tabs, Info } from './ui';
+import { Button, Loader, Tabs, Info, Input } from './ui';
 import AnalysisTable from './AnalysisTable';
 import { formatDateRel, formatBytes } from '../lib/format';
-import type { DatabaseInfo, DatabaseStats, DatabaseTableRow } from '../types';
+import type { DatabaseInfo, DatabaseStats, DatabaseTableRow, ServerConfigRow } from '../types';
 
 export default function DatabaseView() {
   const store = useStore();
   const [info, setInfo] = useState<DatabaseInfo | null>(null);
   const [stats, setStats] = useState<DatabaseStats | null>(null);
   const [analysisRows, setAnalysisRows] = useState<DatabaseTableRow[]>([]);
-  const [view, setView] = useState<'info' | 'service' | 'analysis'>('info');
+  const [configRows, setConfigRows] = useState<ServerConfigRow[] | null>(null);
+  const [configLoading, setConfigLoading] = useState(false);
+  const [configSearch, setConfigSearch] = useState('');
+  const [view, setView] = useState<'info' | 'service' | 'analysis' | 'config'>('info');
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -43,6 +46,22 @@ export default function DatabaseView() {
     load();
   }, [load]);
 
+  const loadConfig = useCallback(async () => {
+    if (!id || !db || configRows) return;
+    setConfigLoading(true);
+    try {
+      setConfigRows(await api.databaseConfig(id, db));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Ошибка');
+    } finally {
+      setConfigLoading(false);
+    }
+  }, [id, db, configRows]);
+
+  useEffect(() => {
+    if (view === 'config') loadConfig();
+  }, [view, loadConfig]);
+
   async function action(key: string, fn: () => Promise<unknown>) {
     setBusy(key);
     try {
@@ -63,6 +82,13 @@ export default function DatabaseView() {
       ? ((stats.blks_hit / (stats.blks_hit + stats.blks_read)) * 100).toFixed(1)
       : '—';
 
+  const filteredConfig = (configRows ?? []).filter(
+    (c) =>
+      !configSearch ||
+      c.name.toLowerCase().includes(configSearch.toLowerCase()) ||
+      c.value.toLowerCase().includes(configSearch.toLowerCase())
+  );
+
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-[var(--bg)]">
       <div className="border-b border-[var(--border)] px-4 py-3">
@@ -73,11 +99,12 @@ export default function DatabaseView() {
         <div className="mt-3">
           <Tabs
             value={view}
-            onChange={(v) => setView(v as 'info' | 'service' | 'analysis')}
+            onChange={(v) => setView(v as 'info' | 'service' | 'analysis' | 'config')}
             items={[
               { value: 'info', label: 'Информация' },
               { value: 'service', label: 'Сервис' },
               { value: 'analysis', label: 'Анализ' },
+              { value: 'config', label: 'Конфигурация' },
             ]}
           />
         </div>
@@ -166,6 +193,51 @@ export default function DatabaseView() {
                   <Info label="Сброс статистики" value={formatDateRel(stats?.stats_reset ?? null)} />
                 </div>
               </section>
+            </div>
+          ) : view === 'config' ? (
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <Input
+                  className="max-w-[300px]"
+                  placeholder="Поиск параметра…"
+                  value={configSearch}
+                  onChange={(e) => setConfigSearch(e.target.value)}
+                />
+                <span className="font-mono text-[11px] text-[var(--faint)]">
+                  {filteredConfig.length} / {configRows?.length ?? 0}
+                </span>
+              </div>
+              {configLoading ? (
+                <div className="grid h-40 place-items-center">
+                  <Loader />
+                </div>
+              ) : (
+                <div className="overflow-hidden rounded-lg border border-[var(--border)]">
+                  <table className="w-full border-collapse font-mono text-[12px]">
+                    <thead>
+                      <tr className="bg-[var(--surface)] text-left">
+                        <th className="border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)]">Параметр</th>
+                        <th className="border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)]">Значение</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredConfig.map((c) => (
+                        <tr key={c.name} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)]">
+                          <td className="px-3 py-1.5 text-[var(--text)]">{c.name}</td>
+                          <td className="px-3 py-1.5 text-[var(--cyan)]">{c.value}</td>
+                        </tr>
+                      ))}
+                      {filteredConfig.length === 0 && (
+                        <tr>
+                          <td colSpan={2} className="px-3 py-3 text-center text-[var(--null)]">
+                            Ничего не найдено
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           ) : (
             <AnalysisTable rows={analysisRows} showSchema exportName={`${db}_tables`} />

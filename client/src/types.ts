@@ -250,3 +250,8 @@ export interface OverviewResult {
     duplicate_index_count: number;
   };
 }
+
+export interface ServerConfigRow {
+  name: string;
+  value: string;
+}

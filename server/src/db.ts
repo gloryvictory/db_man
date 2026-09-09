@@ -1152,3 +1152,23 @@ export async function getOverview(connId: string, db: string): Promise<OverviewR
 
   return { biggest, bloated, unused_indexes, totals };
 }
+
+export interface ServerConfigRow {
+  name: string;
+  value: string;
+}
+
+export async function getServerConfig(connId: string, db: string): Promise<ServerConfigRow[]> {
+  const pool = getPool(connId, db);
+  const res = await q(
+    pool,
+    { connId, db },
+    `SELECT name, current_setting(name::text) AS value
+     FROM pg_settings
+     ORDER BY name`
+  );
+  return res.rows.map((r: Record<string, unknown>) => ({
+    name: String(r.name),
+    value: String(r.value),
+  }));
+}
