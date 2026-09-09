@@ -84,7 +84,7 @@ function NodeRow({ node, depth }: { node: TreeNode; depth: number }) {
   );
 }
 
-export default function Sidebar() {
+export default function Sidebar({ width }: { width: number }) {
   const store = useStore();
 
   useEffect(() => {
@@ -95,7 +95,7 @@ export default function Sidebar() {
   const conn = store.connections.find((c) => c.id === store.activeConnId);
 
   return (
-    <aside className="flex w-[280px] shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-panel)]">
+    <aside className="flex shrink-0 flex-col bg-[var(--bg-panel)]" style={{ width }}>
       <div className="min-h-0 flex-1 overflow-auto p-2">
         {!store.activeConnId || !conn ? (
           <div className="px-2 py-1 text-[12px] text-[var(--faint)]">

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { RefreshCw, Download } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import DataView from '../components/DataView';
@@ -19,9 +19,49 @@ function download(url: string) {
   a.remove();
 }
 
+const SIDEBAR_MIN = 180;
+const SIDEBAR_MAX = 640;
+const SIDEBAR_DEFAULT = 280;
+
 export default function Browser() {
   const store = useStore();
   const [filterLocal, setFilterLocal] = useState('');
+  const [sidebarW, setSidebarW] = useState<number>(() => {
+    const saved = Number(localStorage.getItem('dbman-sidebar-width'));
+    return saved >= SIDEBAR_MIN && saved <= SIDEBAR_MAX ? saved : SIDEBAR_DEFAULT;
+  });
+  const drag = useRef<{ x: number; w: number } | null>(null);
+
+  useEffect(() => {
+    function onMove(e: MouseEvent) {
+      if (!drag.current) return;
+      const w = Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, drag.current.w + (e.clientX - drag.current.x)));
+      setSidebarW(w);
+    }
+    function onUp() {
+      if (!drag.current) return;
+      drag.current = null;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    return () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('dbman-sidebar-width', String(sidebarW));
+  }, [sidebarW]);
+
+  function startDrag(e: React.MouseEvent) {
+    drag.current = { x: e.clientX, w: sidebarW };
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+    e.preventDefault();
+  }
 
   useEffect(() => {
     setFilterLocal('');
@@ -44,7 +84,14 @@ export default function Browser() {
 
   return (
     <div className="flex h-full">
-      <Sidebar />
+      <Sidebar width={sidebarW} />
+      <div
+        className="group relative w-[5px] shrink-0 cursor-col-resize transition-colors hover:bg-[var(--accent-bg)]"
+        onMouseDown={startDrag}
+        title="Перетащите, чтобы изменить ширину"
+      >
+        <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-[var(--border)] transition-colors group-hover:bg-[var(--accent)]" />
+      </div>
       <main className="flex min-w-0 flex-1 flex-col bg-[var(--bg)]">
         {store.selectedDb && !sel ? (
           <DatabaseView key={store.selectedDb} />
