@@ -26,6 +26,15 @@ export interface LogEntry {
   error: string | null;
 }
 
+export interface AuditEntry {
+  username: string | null;
+  action: string;
+  target: string | null;
+  detail: string | null;
+  status: 'ok' | 'error';
+  error: string | null;
+}
+
 let db: DatabaseSync;
 
 export function initDb(dbPath: string): DatabaseSync {
@@ -60,6 +69,16 @@ export function initDb(dbPath: string): DatabaseSync {
     CREATE TABLE IF NOT EXISTS connection_secrets (
       connection_id TEXT PRIMARY KEY,
       password TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS audit_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT,
+      action TEXT NOT NULL,
+      target TEXT,
+      detail TEXT,
+      status TEXT NOT NULL,
+      error TEXT,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
     );
   `);
 
@@ -169,4 +188,34 @@ export function clearSavedPassword(connectionId: string): void {
 
 export function hasSavedPassword(connectionId: string): boolean {
   return Boolean(db.prepare('SELECT 1 FROM connection_secrets WHERE connection_id = ?').get(connectionId));
+}
+
+export function logAudit(entry: AuditEntry): void {
+  db.prepare(
+    `INSERT INTO audit_log (username, action, target, detail, status, error)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  ).run(entry.username, entry.action, entry.target, entry.detail, entry.status, entry.error);
+}
+
+export function listAudit(limit?: number, offset?: number): unknown[] {
+  let sql = 'SELECT * FROM audit_log ORDER BY id DESC';
+  const params: number[] = [];
+  if (limit !== undefined) {
+    sql += ' LIMIT ?';
+    params.push(limit);
+  }
+  if (offset !== undefined) {
+    sql += ' OFFSET ?';
+    params.push(offset);
+  }
+  return db.prepare(sql).all(...params) as unknown[];
+}
+
+export function countAudit(): number {
+  const row = db.prepare('SELECT count(*) AS n FROM audit_log').get() as { n: number };
+  return Number(row.n);
+}
+
+export function clearAudit(): void {
+  db.prepare('DELETE FROM audit_log').run();
 }

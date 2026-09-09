@@ -6,6 +6,7 @@ import { getTheme, applyTheme, type Theme } from '../lib/theme';
 import { Button, Select } from './ui';
 import ConnectionModal from './ConnectionModal';
 import LogsModal from './LogsModal';
+import ObjectSearch from './ObjectSearch';
 import PasswordModal from './PasswordModal';
 
 export default function Topbar() {
@@ -69,6 +70,8 @@ export default function Topbar() {
             Подключить
           </Button>
         ))}
+
+      <ObjectSearch />
 
       <div className="flex-1" />
 

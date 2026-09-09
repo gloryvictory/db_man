@@ -265,6 +265,21 @@ export async function getExportRows(connId: string, db: string, schema: string, 
   return { columns: colNames, rows: res.rows.map((r) => colNames.map((n) => sanitize(r[n]))) };
 }
 
+export async function getExportRowsText(connId: string, db: string, schema: string, table: string, limit = 50000) {
+  assertIdent(schema);
+  assertIdent(table);
+  const pool = getPool(connId, db);
+  const columns = await getColumns(connId, db, schema, table);
+  const colNames = columns.map((c) => c.name);
+  const cap = Math.min(Math.max(limit, 1), 100000);
+  const sql = `SELECT ${colNames.map((c) => `${quote(c)}::text`).join(', ')} FROM ${quote(schema)}.${quote(table)} LIMIT ${cap}`;
+  const res = await q(pool, { connId, db }, sql);
+  return {
+    columns: colNames,
+    rows: res.rows.map((r) => colNames.map((n) => (r[n] === null ? null : String(r[n])))),
+  };
+}
+
 export interface StatsRow {
   schema: string;
   name: string;
@@ -286,6 +301,60 @@ export async function getStats(connId: string, db: string): Promise<StatsRow[]> 
      LIMIT 50`
   );
   return res.rows.map((r) => ({ schema: r.schema, name: r.name, rows: Number(r.rows) }));
+}
+
+export interface SearchResult {
+  tables: { schema: string; name: string; comment: string | null; kind: string }[];
+  columns: { schema: string; table: string; name: string; data_type: string }[];
+  indexes: { schema: string; table: string; name: string }[];
+}
+
+export async function searchObjects(connId: string, db: string, query: string): Promise<SearchResult> {
+  const pool = getPool(connId, db);
+  const like = `%${query.replace(/[\\%_]/g, (m) => '\\' + m)}%`;
+  const excl = `n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg\\_%' ESCAPE '\\'`;
+
+  const tables = await q(
+    pool,
+    { connId, db },
+    `SELECT n.nspname AS schema, c.relname AS name, obj_description(c.oid, 'pg_class') AS comment, c.relkind AS kind
+     FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE c.relkind IN ('r','p','m','v','f') AND c.relname ILIKE $1 AND ${excl}
+     ORDER BY n.nspname, c.relname LIMIT 50`,
+    [like]
+  );
+
+  const columns = await q(
+    pool,
+    { connId, db },
+    `SELECT n.nspname AS schema, c.relname AS table, a.attname AS name, format_type(a.atttypid, a.atttypmod) AS data_type
+     FROM pg_attribute a
+     JOIN pg_class c ON c.oid = a.attrelid
+     JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE a.attnum > 0 AND NOT a.attisdropped AND c.relkind IN ('r','p','m','v','f')
+       AND a.attname ILIKE $1 AND ${excl}
+     ORDER BY n.nspname, c.relname, a.attnum LIMIT 50`,
+    [like]
+  );
+
+  const indexes = await q(
+    pool,
+    { connId, db },
+    `SELECT n.nspname AS schema, c.relname AS table, i.relname AS name
+     FROM pg_index x
+     JOIN pg_class i ON i.oid = x.indexrelid
+     JOIN pg_class c ON c.oid = x.indrelid
+     JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE i.relname ILIKE $1 AND ${excl}
+     ORDER BY n.nspname, c.relname, i.relname LIMIT 50`,
+    [like]
+  );
+
+  return {
+    tables: tables.rows.map((r) => ({ schema: r.schema, name: r.name, comment: r.comment, kind: r.kind })),
+    columns: columns.rows.map((r) => ({ schema: r.schema, table: r.table, name: r.name, data_type: r.data_type })),
+    indexes: indexes.rows.map((r) => ({ schema: r.schema, table: r.table, name: r.name })),
+  };
 }
 
 // ---------- сервис / обслуживание ----------

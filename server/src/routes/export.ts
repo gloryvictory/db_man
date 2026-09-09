@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as XLSX from 'xlsx';
-import { getExportRows } from '../db';
+import { getExportRows, getExportRowsText } from '../db';
 
 const r = Router();
 
@@ -8,6 +8,29 @@ function cellForExcel(v: unknown): unknown {
   if (v === null || v === undefined) return '';
   if (typeof v === 'object') return JSON.stringify(v);
   return v;
+}
+
+function qid(n: string): string {
+  return '"' + n.replace(/"/g, '""') + '"';
+}
+
+function qlit(v: string | null): string {
+  return v === null ? 'NULL' : "'" + v.replace(/'/g, "''") + "'";
+}
+
+function toInsertScript(schema: string, table: string, columns: string[], rows: (string | null)[][]): string {
+  const colList = columns.map(qid).join(', ');
+  const head = `-- db_man: экспорт таблицы ${schema}.${table} (${rows.length} строк)\n`;
+  const BATCH = 200;
+  let out = head;
+  for (let i = 0; i < rows.length; i += BATCH) {
+    const batch = rows.slice(i, i + BATCH);
+    out +=
+      `INSERT INTO ${qid(schema)}.${qid(table)} (${colList}) VALUES\n` +
+      batch.map((r) => '  (' + r.map(qlit).join(', ') + ')').join(',\n') +
+      ';\n';
+  }
+  return out;
 }
 
 function toCsv(columns: string[], rows: unknown[][]): string {
@@ -36,6 +59,20 @@ r.get('/:connId/databases/:db/schemas/:schema/tables/:table/export', async (req,
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="${table}.csv"`);
       return res.send('\ufeff' + csv);
+    }
+
+    if (format === 'sql') {
+      const { columns: cols, rows: textRows } = await getExportRowsText(
+        req.params.connId,
+        req.params.db,
+        req.params.schema,
+        req.params.table,
+        parseInt(limit, 10) || 50000
+      );
+      const sql = toInsertScript(req.params.schema, table, cols, textRows);
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${table}.sql"`);
+      return res.send(sql);
     }
 
     const aoa = [columns, ...rows.map((r) => r.map(cellForExcel))];

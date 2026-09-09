@@ -33,7 +33,7 @@ export default function Browser() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterLocal]);
 
-  function doExport(format: 'xlsx' | 'csv') {
+  function doExport(format: 'xlsx' | 'csv' | 'sql') {
     const id = store.activeConnId;
     const sel = store.selected;
     if (!id || !sel) return;
@@ -100,6 +100,9 @@ export default function Browser() {
               </Button>
               <Button variant="subtle" onClick={() => doExport('csv')}>
                 CSV
+              </Button>
+              <Button variant="subtle" onClick={() => doExport('sql')}>
+                INSERT
               </Button>
             </div>
 

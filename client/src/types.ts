@@ -257,3 +257,27 @@ export interface ServerConfigRow {
   name: string;
   value: string;
 }
+
+export interface AuditEntry {
+  id: number;
+  username: string | null;
+  action: string;
+  target: string | null;
+  detail: string | null;
+  status: 'ok' | 'error';
+  error: string | null;
+  created_at: string;
+}
+
+export interface AuditResult {
+  rows: AuditEntry[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface SearchResult {
+  tables: { schema: string; name: string; comment: string | null; kind: string }[];
+  columns: { schema: string; table: string; name: string; data_type: string }[];
+  indexes: { schema: string; table: string; name: string }[];
+}

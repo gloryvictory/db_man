@@ -1,4 +1,4 @@
-import type { StoredConnection, TableMeta, ColumnMeta, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow } from './types';
+import type { StoredConnection, TableMeta, ColumnMeta, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow, AuditResult, SearchResult } from './types';
 
 const BASE_URL = (import.meta.env.BASE_URL ?? '/').replace(/\/+$/, ''); // '' (корень) или '/db_man'
 const BASE = BASE_URL + '/api';
@@ -68,6 +68,8 @@ export const api = {
     ),
   stats: (id: string, db: string) => http<StatsRow[]>(`/connections/${id}/databases/${enc(db)}/stats`),
   overview: (id: string, db: string) => http<OverviewResult>(`/connections/${id}/databases/${enc(db)}/overview`),
+  search: (id: string, db: string, q: string) =>
+    http<SearchResult>(`/connections/${id}/databases/${enc(db)}/search?q=${enc(q)}`),
   service: (id: string, db: string, schema: string, table: string) =>
     http<ServiceResult>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables/${enc(table)}/service`),
   reindex: (id: string, db: string, schema: string, table: string, index: string) =>
@@ -125,7 +127,9 @@ export const api = {
     http<{ ok: boolean }>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/service/reindex`, { method: 'POST' }),
   logs: (limit: number, offset: number) => http<LogsResult>(`/logs?limit=${limit}&offset=${offset}`),
   clearLogs: () => http<{ ok: boolean }>('/logs', { method: 'DELETE' }),
-  exportUrl: (id: string, db: string, schema: string, table: string, format: 'xlsx' | 'csv') =>
+  audit: (limit: number, offset: number) => http<AuditResult>(`/audit?limit=${limit}&offset=${offset}`),
+  clearAudit: () => http<{ ok: boolean }>('/audit', { method: 'DELETE' }),
+  exportUrl: (id: string, db: string, schema: string, table: string, format: 'xlsx' | 'csv' | 'sql') =>
     `${BASE}/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables/${enc(table)}/export?format=${format}`,
   logsExportUrl: (format: 'xlsx' | 'csv', page?: { limit: number; offset: number }) => {
     const p = page ? `?format=${format}&limit=${page.limit}&offset=${page.offset}` : `?format=${format}`;

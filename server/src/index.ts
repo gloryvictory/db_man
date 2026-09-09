@@ -12,6 +12,7 @@ import maintenanceRouter from './routes/maintenance';
 import databaseRouter from './routes/database';
 import schemaRouter from './routes/schema';
 import logsRouter from './routes/logs';
+import auditRouter from './routes/audit';
 
 initDb(config.sqlitePath);
 
@@ -31,6 +32,7 @@ app.use('/api/connections', maintenanceRouter);
 app.use('/api/connections', databaseRouter);
 app.use('/api/connections', schemaRouter);
 app.use('/api/logs', logsRouter);
+app.use('/api/audit', auditRouter);
 
 // раздача собранного клиента (production)
 const clientDist = path.resolve(__dirname, '../../client/dist');
