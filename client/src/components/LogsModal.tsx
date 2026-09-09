@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
+import { Trash2 } from 'lucide-react';
 import { api } from '../api';
 import type { LogRow } from '../types';
 import { Modal, Button, Loader } from './ui';
@@ -32,6 +34,20 @@ export default function LogsModal({ open, onClose }: { open: boolean; onClose: (
       .catch(() => setLoading(false));
   }, [open, page]);
 
+  async function clearLogsTable() {
+    if (!window.confirm('Очистить весь журнал запросов?')) return;
+    try {
+      await api.clearLogs();
+      toast.success('Журнал очищен');
+      const r = await api.logs(PAGE_SIZE, 0);
+      setRows(r.rows);
+      setTotal(r.total);
+      setPage(0);
+    } catch {
+      toast.error('Не удалось очистить журнал');
+    }
+  }
+
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
@@ -45,6 +61,10 @@ export default function LogsModal({ open, onClose }: { open: boolean; onClose: (
         </Button>
         <Button variant="subtle" onClick={() => download(api.logsExportUrl('csv'))}>
           CSV · весь
+        </Button>
+        <Button variant="subtle" onClick={clearLogsTable} style={{ color: 'var(--red)' }}>
+          <Trash2 size={14} />
+          Очистить
         </Button>
         <div className="flex-1" />
         <span className="font-mono text-[12px] text-[var(--muted)]">

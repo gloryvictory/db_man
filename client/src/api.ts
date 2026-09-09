@@ -123,6 +123,7 @@ export const api = {
   schemaReindex: (id: string, db: string, schema: string) =>
     http<{ ok: boolean }>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/service/reindex`, { method: 'POST' }),
   logs: (limit: number, offset: number) => http<LogsResult>(`/logs?limit=${limit}&offset=${offset}`),
+  clearLogs: () => http<{ ok: boolean }>('/logs', { method: 'DELETE' }),
   exportUrl: (id: string, db: string, schema: string, table: string, format: 'xlsx' | 'csv') =>
     `/api/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables/${enc(table)}/export?format=${format}`,
   logsExportUrl: (format: 'xlsx' | 'csv', page?: { limit: number; offset: number }) => {

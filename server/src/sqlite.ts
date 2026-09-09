@@ -57,6 +57,10 @@ export function initDb(dbPath: string): DatabaseSync {
       error TEXT,
       created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
     );
+    CREATE TABLE IF NOT EXISTS connection_secrets (
+      connection_id TEXT PRIMARY KEY,
+      password TEXT NOT NULL
+    );
   `);
 
   // миграция для существующих БД (журнал без новых колонок)
@@ -104,6 +108,7 @@ export function updateConnection(
 
 export function deleteConnection(id: string): void {
   db.prepare('DELETE FROM connections WHERE id = ?').run(id);
+  db.prepare('DELETE FROM connection_secrets WHERE connection_id = ?').run(id);
 }
 
 export function logQuery(entry: LogEntry): void {
@@ -141,4 +146,27 @@ export function listLogs(limit?: number, offset?: number): unknown[] {
 export function countLogs(): number {
   const row = db.prepare('SELECT count(*) AS n FROM query_log').get() as { n: number };
   return Number(row.n);
+}
+
+export function clearLogs(): void {
+  db.prepare('DELETE FROM query_log').run();
+}
+
+export function savePassword(connectionId: string, password: string): void {
+  db.prepare('INSERT OR REPLACE INTO connection_secrets (connection_id, password) VALUES (?, ?)').run(connectionId, password);
+}
+
+export function getSavedPassword(connectionId: string): string | undefined {
+  const row = db.prepare('SELECT password FROM connection_secrets WHERE connection_id = ?').get(connectionId) as
+    | { password: string }
+    | undefined;
+  return row?.password;
+}
+
+export function clearSavedPassword(connectionId: string): void {
+  db.prepare('DELETE FROM connection_secrets WHERE connection_id = ?').run(connectionId);
+}
+
+export function hasSavedPassword(connectionId: string): boolean {
+  return Boolean(db.prepare('SELECT 1 FROM connection_secrets WHERE connection_id = ?').get(connectionId));
 }

@@ -53,6 +53,7 @@ interface DbManState {
     database: string;
     username: string;
     password?: string;
+    savePassword?: boolean;
   }) => Promise<{ ok: boolean; connected: boolean; error?: string }>;
   removeConnection: (id: string) => Promise<void>;
   toggleNode: (node: TreeNode) => Promise<void>;

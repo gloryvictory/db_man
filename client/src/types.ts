@@ -7,6 +7,7 @@ export interface StoredConnection {
   username: string;
   created_at: string;
   hasPassword: boolean;
+  hasSavedPassword: boolean;
 }
 
 export interface ColumnMeta {

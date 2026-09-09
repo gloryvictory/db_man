@@ -10,6 +10,7 @@ const empty = {
   database: '',
   username: '',
   password: '',
+  savePassword: false,
 };
 
 export default function ConnectionModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -27,6 +28,7 @@ export default function ConnectionModal({ open, onClose }: { open: boolean; onCl
       database: form.database,
       username: form.username,
       password: form.password || undefined,
+      savePassword: form.savePassword,
     });
     setSaving(false);
 
@@ -90,13 +92,22 @@ export default function ConnectionModal({ open, onClose }: { open: boolean; onCl
             onChange={(e) => setForm({ ...form, username: e.target.value })}
           />
         </Field>
-        <Field label="Пароль" description="Хранится только в памяти сервера, не сохраняется на диск">
+        <Field label="Пароль" description="По умолчанию хранится только в памяти сервера">
           <Input
             type="password"
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
           />
         </Field>
+        <label className="flex cursor-pointer items-center gap-2 text-[12px] text-[var(--muted)]">
+          <input
+            type="checkbox"
+            className="h-3.5 w-3.5 accent-[var(--accent)]"
+            checked={form.savePassword}
+            onChange={(e) => setForm({ ...form, savePassword: e.target.checked })}
+          />
+          Сохранить пароль для автоматического подключения
+        </label>
         <Button variant="primary" type="submit" disabled={saving} className="mt-1">
           {saving ? 'Подключение…' : 'Добавить и подключить'}
         </Button>

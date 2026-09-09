@@ -1,11 +1,11 @@
 import { Router } from 'express';
-import { listConnections, getConnection, createConnection, updateConnection, deleteConnection } from '../sqlite';
+import { listConnections, getConnection, createConnection, updateConnection, deleteConnection, savePassword, getSavedPassword, clearSavedPassword, hasSavedPassword } from '../sqlite';
 import { storeSecrets, getSecrets, hasPassword, dropConnection, getPool } from '../pools';
 
 const r = Router();
 
 function maskConnection(c: { id: string }): Record<string, unknown> {
-  return { ...c, hasPassword: hasPassword(c.id) };
+  return { ...c, hasPassword: hasPassword(c.id), hasSavedPassword: hasSavedPassword(c.id) };
 }
 
 async function testConnection(connId: string, database: string) {
@@ -25,7 +25,7 @@ r.get('/', (_req, res) => {
 
 r.post('/', async (req, res, next) => {
   try {
-    const { name, host, port = 5432, database, username, password } = (req.body ?? {}) as Record<string, unknown>;
+    const { name, host, port = 5432, database, username, password, savePassword: save } = (req.body ?? {}) as Record<string, unknown>;
     if (!name || !host || !database || !username) {
       return res.status(400).json({ error: 'Заполните name, host, database и username' });
     }
@@ -38,6 +38,7 @@ r.post('/', async (req, res, next) => {
     });
     const pwd = typeof password === 'string' && password ? password : undefined;
     storeSecrets(conn.id, { host: conn.host, port: conn.port, user: conn.username, ...(pwd ? { password: pwd } : {}) });
+    if (pwd && save) savePassword(conn.id, pwd);
     const test = await testConnection(conn.id, conn.database);
     res.status(201).json({ ...maskConnection(conn), connected: test.connected, error: test.error });
   } catch (e) {
@@ -47,7 +48,7 @@ r.post('/', async (req, res, next) => {
 
 r.put('/:id', async (req, res, next) => {
   try {
-    const { name, host, port, database, username, password } = (req.body ?? {}) as Record<string, unknown>;
+    const { name, host, port, database, username, password, savePassword: save } = (req.body ?? {}) as Record<string, unknown>;
     const patch: Record<string, unknown> = {};
     if (name) patch.name = String(name);
     if (host) patch.host = String(host);
@@ -58,6 +59,10 @@ r.put('/:id', async (req, res, next) => {
     if (!conn) return res.status(404).json({ error: 'Подключение не найдено' });
     if (typeof password === 'string' && password) {
       storeSecrets(conn.id, { host: conn.host, port: conn.port, user: conn.username, password });
+      if (save) savePassword(conn.id, password);
+      else clearSavedPassword(conn.id);
+    } else if (save === false) {
+      clearSavedPassword(conn.id);
     }
     res.json(maskConnection(conn));
   } catch (e) {
@@ -77,7 +82,8 @@ r.post('/:id/connect', async (req, res, next) => {
     if (!conn) return res.status(404).json({ error: 'Подключение не найдено' });
     const { password } = (req.body ?? {}) as Record<string, unknown>;
     const existing = getSecrets(conn.id);
-    const pwd = typeof password === 'string' && password ? password : existing?.password;
+    const saved = getSavedPassword(conn.id);
+    const pwd = typeof password === 'string' && password ? password : existing?.password ?? saved;
     storeSecrets(conn.id, {
       host: conn.host,
       port: conn.port,

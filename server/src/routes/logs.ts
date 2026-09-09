@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as XLSX from 'xlsx';
-import { listLogs, countLogs } from '../sqlite';
+import { listLogs, countLogs, clearLogs } from '../sqlite';
 
 const r = Router();
 
@@ -9,6 +9,11 @@ r.get('/', (req, res) => {
   const limit = Math.min(parseInt(q.limit, 10) || 100, 1000);
   const offset = Math.max(parseInt(q.offset, 10) || 0, 0);
   res.json({ rows: listLogs(limit, offset), total: countLogs(), limit, offset });
+});
+
+r.delete('/', (_req, res) => {
+  clearLogs();
+  res.json({ ok: true });
 });
 
 function cell(v: unknown): unknown {
