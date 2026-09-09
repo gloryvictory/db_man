@@ -17,6 +17,11 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+/** Скачивание текстового файла (.sql и т.п.). */
+export function downloadText(filename: string, text: string) {
+  downloadBlob(new Blob([text], { type: 'text/plain;charset=utf-8' }), filename);
+}
+
 /** Экспорт в Excel (.xlsx) на стороне клиента. */
 export function exportToExcel(filename: string, header: string[], rows: unknown[][]) {
   const aoa = [header, ...rows.map((r) => r.map(cellForExcel))];

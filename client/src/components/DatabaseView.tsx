@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Eraser, Sparkles, RotateCcw, Copy } from 'lucide-react';
+import { Eraser, Sparkles, RotateCcw, Copy, Download } from 'lucide-react';
 import { useStore } from '../store';
 import { api } from '../api';
 import { Button, Loader, Tabs, Info, Input } from './ui';
 import AnalysisTable from './AnalysisTable';
 import { SqlCode } from '../lib/sqlHighlight';
 import { formatDateRel, formatBytes } from '../lib/format';
+import { downloadText } from '../lib/export';
 import type { DatabaseInfo, DatabaseStats, DatabaseTableRow, ServerConfigRow } from '../types';
 
 export default function DatabaseView() {
@@ -270,6 +271,10 @@ export default function DatabaseView() {
                 <Button size="xs" variant="subtle" onClick={copyDdl} disabled={!ddl}>
                   <Copy size={12} />
                   Скопировать
+                </Button>
+                <Button size="xs" variant="subtle" onClick={() => ddl && downloadText(`${db}.sql`, ddl)} disabled={!ddl}>
+                  <Download size={12} />
+                  Экспорт
                 </Button>
                 <span className="font-mono text-[11px] text-[var(--faint)]">
                   {ddl ? `${ddl.length.toLocaleString('ru-RU')} симв.` : ''}
