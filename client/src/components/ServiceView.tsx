@@ -81,9 +81,9 @@ export default function ServiceView() {
         <div className="flex flex-col gap-5">
           {/* Таблица */}
           <section>
-            <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#8b93a7]">Таблица</h2>
+            <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Таблица</h2>
             {t ? (
-              <div className="grid grid-cols-2 gap-x-8 gap-y-3 rounded-lg border border-[#272c39] bg-[#12151c] p-4 md:grid-cols-3">
+              <div className="grid grid-cols-2 gap-x-8 gap-y-3 rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-4 md:grid-cols-3">
                 <Info label="Всего" value={t.total_size} mono />
                 <Info label="Таблица" value={t.table_size} mono />
                 <Info label="Индексы" value={t.indexes_size} mono />
@@ -95,15 +95,15 @@ export default function ServiceView() {
                 <Info label="Метод доступа" value={t.access_method} mono />
               </div>
             ) : (
-              <div className="text-[12px] text-[#6b7390]">Нет данных</div>
+              <div className="text-[12px] text-[var(--null)]">Нет данных</div>
             )}
           </section>
 
           {/* Индексы */}
           <section>
             <div className="mb-2 flex items-center gap-2">
-              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[#8b93a7]">Индексы</h2>
-              <span className="font-mono text-[11px] text-[#5c6478]">{data?.indexes.length ?? 0}</span>
+              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Индексы</h2>
+              <span className="font-mono text-[11px] text-[var(--faint)]">{data?.indexes.length ?? 0}</span>
               <div className="flex-1" />
               <Button size="xs" variant="subtle" onClick={exportIndexes}>
                 <Download size={12} />
@@ -120,32 +120,32 @@ export default function ServiceView() {
               </Button>
             </div>
 
-            <div className="overflow-hidden rounded-lg border border-[#272c39]">
+            <div className="overflow-hidden rounded-lg border border-[var(--border)]">
               <table className="w-full border-collapse font-mono text-[12px]">
                 <thead>
-                  <tr className="bg-[#181c26] text-left">
-                    <th className="border-b border-[#333a4a] px-3 py-2 font-medium text-[#8b93a7]">Индекс</th>
-                    <th className="border-b border-[#333a4a] px-3 py-2 font-medium text-[#8b93a7]">Тип</th>
-                    <th className="border-b border-[#333a4a] px-3 py-2 font-medium text-[#8b93a7]">Размер</th>
-                    <th className="border-b border-[#333a4a] px-3 py-2 text-right font-medium text-[#8b93a7]">Скан.</th>
+                  <tr className="bg-[var(--surface)] text-left">
+                    <th className="border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)]">Индекс</th>
+                    <th className="border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)]">Тип</th>
+                    <th className="border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)]">Размер</th>
+                    <th className="border-b border-[var(--border-strong)] px-3 py-2 text-right font-medium text-[var(--muted)]">Скан.</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data?.indexes.map((ix) => (
-                    <tr key={ix.name} className="border-b border-[#272c39] align-top hover:bg-[#1e2330]">
+                    <tr key={ix.name} className="border-b border-[var(--border)] align-top hover:bg-[var(--surface-hover)]">
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-2">
-                          <span className="text-[#e7eaf0]">{ix.name}</span>
+                          <span className="text-[var(--text)]">{ix.name}</span>
                           {ix.is_primary && <Badge kind="pk">PK</Badge>}
                           {ix.is_unique && !ix.is_primary && <Badge kind="fk">UNIQUE</Badge>}
                           {!ix.is_valid && <Badge kind="kind">invalid</Badge>}
                           {ix.unused && (
-                            <span className="rounded bg-[#3a2e14] px-1 py-0.5 text-[9px] font-semibold text-[#e0a94f]">
+                            <span className="rounded bg-[var(--amber-bg)] px-1 py-0.5 text-[9px] font-semibold text-[var(--amber)]">
                               не используется
                             </span>
                           )}
                           {ix.duplicate && (
-                            <span className="rounded bg-[#3a1720] px-1 py-0.5 text-[9px] font-semibold text-[#f0566a]">
+                            <span className="rounded bg-[var(--red-bg)] px-1 py-0.5 text-[9px] font-semibold text-[var(--red)]">
                               дубликат
                             </span>
                           )}
@@ -159,20 +159,20 @@ export default function ServiceView() {
                             {busy === `reindex:${ix.name}` ? '…' : 'Перестроить'}
                           </Button>
                         </div>
-                        <div className="mt-1 max-w-[560px] truncate text-[10.5px] text-[#5c6478]" title={ix.definition}>
+                        <div className="mt-1 max-w-[560px] truncate text-[10.5px] text-[var(--faint)]" title={ix.definition}>
                           {ix.definition}
                         </div>
                       </td>
-                      <td className="px-3 py-2 text-[#7fd4ff]">{ix.access_method}</td>
-                      <td className="whitespace-nowrap px-3 py-2 text-[#e7eaf0]">{ix.size}</td>
-                      <td className="whitespace-nowrap px-3 py-2 text-right text-[#c9d2ff]">
+                      <td className="px-3 py-2 text-[var(--cyan)]">{ix.access_method}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-[var(--text)]">{ix.size}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right text-[var(--violet)]">
                         {ix.idx_scan.toLocaleString('ru-RU')}
                       </td>
                     </tr>
                   ))}
                   {!data?.indexes.length && (
                     <tr>
-                      <td colSpan={4} className="px-3 py-3 text-center text-[#6b7390]">
+                      <td colSpan={4} className="px-3 py-3 text-center text-[var(--null)]">
                         Индексов нет
                       </td>
                     </tr>
@@ -186,19 +186,19 @@ export default function ServiceView() {
           {geoCols.length > 0 && (
             <section>
               <div className="mb-2 flex items-center gap-2">
-                <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[#8b93a7]">
+                <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
                   Пространственный индекс
                 </h2>
-                <span className="font-mono text-[11px] text-[#5c6478]">{geoCols.join(', ')}</span>
+                <span className="font-mono text-[11px] text-[var(--faint)]">{geoCols.join(', ')}</span>
               </div>
 
               {data?.spatial_indexes.map((si) => (
-                <div key={si.name} className="mb-2 rounded-lg border border-[#272c39] bg-[#12151c] p-3">
+                <div key={si.name} className="mb-2 rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-3">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-[#e7eaf0]">{si.name}</span>
+                    <span className="font-mono text-[var(--text)]">{si.name}</span>
                     <Badge kind="kind">{si.access_method}</Badge>
-                    <span className="font-mono text-[11px] text-[#5c6478]">{si.size}</span>
-                    <span className="font-mono text-[11px] text-[#8b93a7]">→ {si.column_name}</span>
+                    <span className="font-mono text-[11px] text-[var(--faint)]">{si.size}</span>
+                    <span className="font-mono text-[11px] text-[var(--muted)]">→ {si.column_name}</span>
                     <div className="flex-1" />
                     <Button
                       size="xs"
@@ -210,7 +210,7 @@ export default function ServiceView() {
                       {busy === `reindex:${si.name}` ? '…' : 'Перестроить'}
                     </Button>
                   </div>
-                  <div className="mt-1 max-w-[560px] truncate text-[10.5px] text-[#5c6478]" title={si.definition}>
+                  <div className="mt-1 max-w-[560px] truncate text-[10.5px] text-[var(--faint)]" title={si.definition}>
                     {si.definition}
                   </div>
                 </div>
@@ -219,10 +219,10 @@ export default function ServiceView() {
               {missingCols.map((col) => (
                 <div
                   key={col}
-                  className="flex items-center justify-between rounded-lg border border-dashed border-[#333a4a] bg-[#12151c] p-3"
+                  className="flex items-center justify-between rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--bg-panel)] p-3"
                 >
-                  <span className="text-[12px] text-[#8b93a7]">
-                    Нет индекса для <span className="font-mono text-[#e7eaf0]">{col}</span>
+                  <span className="text-[12px] text-[var(--muted)]">
+                    Нет индекса для <span className="font-mono text-[var(--text)]">{col}</span>
                   </span>
                   <Button
                     size="xs"
@@ -240,12 +240,12 @@ export default function ServiceView() {
 
           {/* VACUUM / ANALYZE */}
           <section>
-            <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#8b93a7]">Обслуживание</h2>
-            <div className="rounded-lg border border-[#272c39] bg-[#12151c] p-4">
+            <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Обслуживание</h2>
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-4">
               <div className="grid grid-cols-1 gap-x-8 gap-y-3 md:grid-cols-2">
-                <div className="rounded-md border border-[#272c39] bg-[#0e1015] p-3">
+                <div className="rounded-md border border-[var(--border)] bg-[var(--bg)] p-3">
                   <div className="mb-2 flex items-center justify-between">
-                    <span className="text-[12px] font-medium text-[#e7eaf0]">VACUUM</span>
+                    <span className="text-[12px] font-medium text-[var(--text)]">VACUUM</span>
                     <Button
                       size="xs"
                       disabled={busy === 'vacuum'}
@@ -264,9 +264,9 @@ export default function ServiceView() {
                   </div>
                 </div>
 
-                <div className="rounded-md border border-[#272c39] bg-[#0e1015] p-3">
+                <div className="rounded-md border border-[var(--border)] bg-[var(--bg)] p-3">
                   <div className="mb-2 flex items-center justify-between">
-                    <span className="text-[12px] font-medium text-[#e7eaf0]">ANALYZE</span>
+                    <span className="text-[12px] font-medium text-[var(--text)]">ANALYZE</span>
                     <Button
                       size="xs"
                       disabled={busy === 'analyze'}
@@ -286,7 +286,7 @@ export default function ServiceView() {
                 </div>
               </div>
 
-              <div className="mt-4 grid grid-cols-1 gap-x-8 gap-y-3 border-t border-[#272c39] pt-3 md:grid-cols-3">
+              <div className="mt-4 grid grid-cols-1 gap-x-8 gap-y-3 border-t border-[var(--border)] pt-3 md:grid-cols-3">
                 <Info label="Живых кортежей" value={(st?.n_live_tup ?? 0).toLocaleString('ru-RU')} mono />
                 <Info label="Мёртвых кортежей" value={(st?.n_dead_tup ?? 0).toLocaleString('ru-RU')} mono />
                 <Info label="Изменено с ANALYZE" value={(st?.n_mod_since_analyze ?? 0).toLocaleString('ru-RU')} mono />

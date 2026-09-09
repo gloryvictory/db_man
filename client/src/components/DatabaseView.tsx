@@ -64,11 +64,11 @@ export default function DatabaseView() {
       : '—';
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-[#0e1015]">
-      <div className="border-b border-[#272c39] px-4 py-3">
+    <div className="flex min-h-0 flex-1 flex-col bg-[var(--bg)]">
+      <div className="border-b border-[var(--border)] px-4 py-3">
         <div className="flex items-baseline gap-2">
           <h1 className="font-mono text-[16px] font-semibold">{db}</h1>
-          <span className="text-[12px] text-[#8b93a7]">База данных</span>
+          <span className="text-[12px] text-[var(--muted)]">База данных</span>
         </div>
         <div className="mt-3">
           <Tabs
@@ -93,16 +93,16 @@ export default function DatabaseView() {
             info ? (
               <div className="flex flex-col gap-5">
                 <section>
-                  <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#8b93a7]">Размер</h2>
-                  <div className="grid grid-cols-2 gap-x-8 gap-y-3 rounded-lg border border-[#272c39] bg-[#12151c] p-4 md:grid-cols-3">
+                  <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Размер</h2>
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-3 rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-4 md:grid-cols-3">
                     <Info label="Всего" value={info.total_size} mono />
                     <Info label="Таблицы" value={info.tables_size} mono />
                     <Info label="Индексы" value={info.indexes_size} mono />
                   </div>
                 </section>
                 <section>
-                  <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#8b93a7]">Сведения</h2>
-                  <div className="grid grid-cols-2 gap-x-8 gap-y-3 rounded-lg border border-[#272c39] bg-[#12151c] p-4 md:grid-cols-3">
+                  <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Сведения</h2>
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-3 rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-4 md:grid-cols-3">
                     <Info label="Таблиц" value={info.table_count.toLocaleString('ru-RU')} mono />
                     <Info label="Индексов" value={info.index_count.toLocaleString('ru-RU')} mono />
                     <Info label="Схем" value={info.schema_count.toLocaleString('ru-RU')} mono />
@@ -120,12 +120,12 @@ export default function DatabaseView() {
                 </section>
               </div>
             ) : (
-              <div className="text-[12px] text-[#6b7390]">Нет данных</div>
+              <div className="text-[12px] text-[var(--null)]">Нет данных</div>
             )
           ) : view === 'service' ? (
             <div className="flex flex-col gap-5">
               <section>
-                <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#8b93a7]">Обслуживание</h2>
+                <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Обслуживание</h2>
                 <div className="mb-2 flex flex-wrap gap-2">
                   <Button disabled={busy === 'vacuum'} onClick={() => action('vacuum', () => api.dbVacuum(id, db))}>
                     <Eraser size={14} />
@@ -140,14 +140,14 @@ export default function DatabaseView() {
                     REINDEX DATABASE
                   </Button>
                 </div>
-                <div className="text-[11px] text-[#5c6478]">
+                <div className="text-[11px] text-[var(--faint)]">
                   Операции применяются ко всей базе данных и могут занять время.
                 </div>
               </section>
 
               <section>
-                <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#8b93a7]">Статистика</h2>
-                <div className="grid grid-cols-2 gap-x-8 gap-y-3 rounded-lg border border-[#272c39] bg-[#12151c] p-4 md:grid-cols-4">
+                <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Статистика</h2>
+                <div className="grid grid-cols-2 gap-x-8 gap-y-3 rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-4 md:grid-cols-4">
                   <Info label="Соединений" value={String(stats?.numbackends ?? 0)} mono />
                   <Info label="Транзакций (commit)" value={(stats?.xact_commit ?? 0).toLocaleString('ru-RU')} mono />
                   <Info label="Транзакций (rollback)" value={(stats?.xact_rollback ?? 0).toLocaleString('ru-RU')} mono />

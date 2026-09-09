@@ -22,8 +22,8 @@ export default function StructureView() {
   return (
     <div className="min-h-0 flex-1 overflow-auto p-4">
       <div className="mb-2 flex items-center gap-2">
-        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[#8b93a7]">Колонки</h2>
-        <span className="font-mono text-[11px] text-[#5c6478]">{store.columns.length}</span>
+        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Колонки</h2>
+        <span className="font-mono text-[11px] text-[var(--faint)]">{store.columns.length}</span>
         <div className="flex-1" />
         <Button size="xs" variant="subtle" onClick={doExport}>
           <Download size={12} />
@@ -34,48 +34,48 @@ export default function StructureView() {
       <table className="w-full border-collapse font-mono text-[12px]">
         <thead>
           <tr>
-            <th className="border-b border-[#333a4a] px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-[#8b93a7]" />
-            <th className="border-b border-[#333a4a] px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-[#8b93a7]">
+            <th className="border-b border-[var(--border-strong)] px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]" />
+            <th className="border-b border-[var(--border-strong)] px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">
               Столбец
             </th>
-            <th className="border-b border-[#333a4a] px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-[#8b93a7]">
+            <th className="border-b border-[var(--border-strong)] px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">
               Тип
             </th>
-            <th className="border-b border-[#333a4a] px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-[#8b93a7]">
+            <th className="border-b border-[var(--border-strong)] px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">
               Null
             </th>
-            <th className="border-b border-[#333a4a] px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-[#8b93a7]">
+            <th className="border-b border-[var(--border-strong)] px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">
               Default
             </th>
-            <th className="border-b border-[#333a4a] px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-[#8b93a7]">
+            <th className="border-b border-[var(--border-strong)] px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">
               Ссылка (FK)
             </th>
           </tr>
         </thead>
         <tbody>
           {store.columns.map((c) => (
-            <tr key={c.name} className="border-b border-[#272c39]">
+            <tr key={c.name} className="border-b border-[var(--border)]">
               <td className="px-3 py-1.5">
                 {c.is_primary ? (
-                  <span className="rounded bg-[#0f2b21] px-1 text-[9px] font-bold text-[#35c98e]">PK</span>
+                  <span className="rounded bg-[var(--accent-bg)] px-1 text-[9px] font-bold text-[var(--accent)]">PK</span>
                 ) : c.foreign_ref ? (
-                  <span className="rounded bg-[#16283b] px-1 text-[9px] font-bold text-[#5aa7e8]">FK</span>
+                  <span className="rounded bg-[var(--blue-bg)] px-1 text-[9px] font-bold text-[var(--blue)]">FK</span>
                 ) : null}
               </td>
-              <td className="px-3 py-1.5 text-[#e7eaf0]">{c.name}</td>
-              <td className="px-3 py-1.5 text-[#7fd4ff]">{c.data_type}</td>
+              <td className="px-3 py-1.5 text-[var(--text)]">{c.name}</td>
+              <td className="px-3 py-1.5 text-[var(--cyan)]">{c.data_type}</td>
               <td className="px-3 py-1.5">
                 {c.not_null ? (
-                  <span className="text-[#35c98e]">NOT NULL</span>
+                  <span className="text-[var(--accent)]">NOT NULL</span>
                 ) : (
-                  <span className="italic text-[#6b7390]">NULL</span>
+                  <span className="italic text-[var(--null)]">NULL</span>
                 )}
               </td>
-              <td className="px-3 py-1.5 text-[#e7eaf0]">
-                {c.default_value ?? <span className="text-[#6b7390]">—</span>}
+              <td className="px-3 py-1.5 text-[var(--text)]">
+                {c.default_value ?? <span className="text-[var(--null)]">—</span>}
               </td>
-              <td className="px-3 py-1.5 text-[#e7eaf0]">
-                {c.foreign_ref ?? <span className="text-[#6b7390]">—</span>}
+              <td className="px-3 py-1.5 text-[var(--text)]">
+                {c.foreign_ref ?? <span className="text-[var(--null)]">—</span>}
               </td>
             </tr>
           ))}

@@ -45,25 +45,25 @@ export default function Browser() {
   return (
     <div className="flex h-full">
       <Sidebar />
-      <main className="flex min-w-0 flex-1 flex-col bg-[#0e1015]">
+      <main className="flex min-w-0 flex-1 flex-col bg-[var(--bg)]">
         {store.selectedDb && !sel ? (
           <DatabaseView key={store.selectedDb} />
         ) : store.selectedSchema && !sel ? (
           <SchemaView key={`${store.selectedSchema.db}.${store.selectedSchema.schema}`} />
         ) : !sel ? (
-          <div className="flex h-full items-center justify-center text-sm text-[#5c6478]">
+          <div className="flex h-full items-center justify-center text-sm text-[var(--faint)]">
             Выберите таблицу слева
           </div>
         ) : (
           <>
-            <div className="border-b border-[#272c39] px-4 py-3">
+            <div className="border-b border-[var(--border)] px-4 py-3">
               <div className="flex items-baseline gap-2">
                 <h1 className="font-mono text-[16px] font-semibold">{sel.table}</h1>
-                <span className="font-mono text-[12px] text-[#e0a94f]">{sel.schema}.</span>
-                <span className="text-[12px] text-[#8b93a7]">
-                  <b className="text-[#e7eaf0]">{store.columns.length}</b> столбцов ·{' '}
-                  <b className="text-[#e7eaf0]">{store.total.toLocaleString('ru-RU')}</b> строк ·{' '}
-                  <b className="text-[#e7eaf0]">{sel.db}</b>
+                <span className="font-mono text-[12px] text-[var(--amber)]">{sel.schema}.</span>
+                <span className="text-[12px] text-[var(--muted)]">
+                  <b className="text-[var(--text)]">{store.columns.length}</b> столбцов ·{' '}
+                  <b className="text-[var(--text)]">{store.total.toLocaleString('ru-RU')}</b> строк ·{' '}
+                  <b className="text-[var(--text)]">{sel.db}</b>
                 </span>
                 {store.loadingTable && <Badge kind="kind">загрузка…</Badge>}
               </div>
@@ -81,7 +81,7 @@ export default function Browser() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 border-b border-[#272c39] px-4 py-2">
+            <div className="flex items-center gap-3 border-b border-[var(--border)] px-4 py-2">
               <Button onClick={() => store.fetchRows()}>
                 <RefreshCw size={14} />
                 Обновить
@@ -108,8 +108,8 @@ export default function Browser() {
             {store.view === 'sql' && <SqlView />}
             {store.view === 'service' && <ServiceView />}
 
-            <div className="flex h-[26px] items-center gap-3 border-t border-[#272c39] bg-[#151820] px-3 font-mono text-[11.5px] text-[#8b93a7]">
-              <span className="text-[#35c98e]">●</span>
+            <div className="flex h-[26px] items-center gap-3 border-t border-[var(--border)] bg-[var(--bg-raised)] px-3 font-mono text-[11.5px] text-[var(--muted)]">
+              <span className="text-[var(--accent)]">●</span>
               <span>{store.connections.find((c) => c.id === store.activeConnId)?.host ?? ''}</span>
               <span>
                 {sel.db}.{sel.schema}.{sel.table}

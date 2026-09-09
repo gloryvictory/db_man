@@ -20,8 +20,8 @@ function HeaderCell({ col }: { col: ColumnMeta }) {
       {col.is_primary && <Badge kind="pk">PK</Badge>}
       {col.foreign_ref && !col.is_primary && <Badge kind="fk">FK</Badge>}
       {col.name}
-      {sorted && <span className="ml-1 text-[#35c98e]">{store.sort!.dir === 'asc' ? '▲' : '▼'}</span>}
-      <span className="block text-[10px] font-normal text-[#5c6478]">{col.data_type}</span>
+      {sorted && <span className="ml-1 text-[var(--accent)]">{store.sort!.dir === 'asc' ? '▲' : '▼'}</span>}
+      <span className="block text-[10px] font-normal text-[var(--faint)]">{col.data_type}</span>
     </span>
   );
 }
@@ -30,16 +30,16 @@ function CellValue({ v }: { v: unknown }) {
   const { text, kind } = formatValue(v);
   const cls =
     kind === 'null'
-      ? 'italic text-[#6b7390]'
+      ? 'italic text-[var(--null)]'
       : kind === 'bool'
         ? text === 'true'
-          ? 'text-[#35c98e]'
-          : 'text-[#5c6478]'
+          ? 'text-[var(--accent)]'
+          : 'text-[var(--faint)]'
         : kind === 'number'
-          ? 'text-[#c9d2ff]'
+          ? 'text-[var(--violet)]'
           : kind === 'json'
-            ? 'text-[#cdb4f0]'
-            : 'text-[#e7eaf0]';
+            ? 'text-[var(--violet)]'
+            : 'text-[var(--text)]';
   return <span className={cls}>{text}</span>;
 }
 
@@ -100,14 +100,14 @@ export default function DataView() {
           <thead>
             {table.getHeaderGroups().map((hg) => (
               <tr key={hg.id}>
-                <th className="sticky left-0 z-10 min-w-[44px] border-b border-r border-[#333a4a] bg-[#181c26] px-2 text-right font-normal text-[#5c6478]">
+                <th className="sticky left-0 z-10 min-w-[44px] border-b border-r border-[var(--border-strong)] bg-[var(--surface)] px-2 text-right font-normal text-[var(--faint)]">
                   #
                 </th>
                 {hg.headers.map((h) => (
                   <th
                     key={h.id}
                     onClick={() => store.setSort(h.column.id)}
-                    className="sticky top-0 cursor-pointer select-none whitespace-nowrap border-b border-[#333a4a] bg-[#181c26] px-3 py-1.5 text-left font-medium text-[#8b93a7] hover:text-[#e7eaf0]"
+                    className="sticky top-0 cursor-pointer select-none whitespace-nowrap border-b border-[var(--border-strong)] bg-[var(--surface)] px-3 py-1.5 text-left font-medium text-[var(--muted)] hover:text-[var(--text)]"
                   >
                     {flexRender(h.column.columnDef.header, h.getContext())}
                   </th>
@@ -120,21 +120,21 @@ export default function DataView() {
               <tr>
                 <td
                   colSpan={store.columns.length + 1}
-                  className="border-b border-[#272c39] px-3 py-4 text-center text-[#6b7390]"
+                  className="border-b border-[var(--border)] px-3 py-4 text-center text-[var(--null)]"
                 >
                   Нет строк
                 </td>
               </tr>
             ) : (
               table.getRowModel().rows.map((row) => (
-                <tr key={row.id} className="hover:bg-[#1e2330]">
-                  <td className="sticky left-0 z-10 border-b border-r border-[#272c39] bg-[#12151c] px-2 text-right text-[#5c6478]">
+                <tr key={row.id} className="hover:bg-[var(--surface-hover)]">
+                  <td className="sticky left-0 z-10 border-b border-r border-[var(--border)] bg-[var(--bg-panel)] px-2 text-right text-[var(--faint)]">
                     {store.page * store.pageSize + row.index + 1}
                   </td>
                   {row.getVisibleCells().map((cell) => (
                     <td
                       key={cell.id}
-                      className="whitespace-nowrap border-b border-[#272c39] px-3 py-1"
+                      className="whitespace-nowrap border-b border-[var(--border)] px-3 py-1"
                     >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
@@ -146,14 +146,14 @@ export default function DataView() {
         </table>
       </div>
 
-      <div className="flex items-center gap-3 border-t border-[#272c39] bg-[#151820] px-3 py-1.5 font-mono text-[11.5px] text-[#8b93a7]">
+      <div className="flex items-center gap-3 border-t border-[var(--border)] bg-[var(--bg-raised)] px-3 py-1.5 font-mono text-[11.5px] text-[var(--muted)]">
         <span>
           {store.total ? store.page * store.pageSize + 1 : 0}–
           {Math.min((store.page + 1) * store.pageSize, store.total)} из{' '}
           {store.total.toLocaleString('ru-RU')}
         </span>
         <div className="flex-1" />
-        <span className="text-[#5c6478]">LIMIT</span>
+        <span className="text-[var(--faint)]">LIMIT</span>
         <Select
           direction="up"
           width={68}

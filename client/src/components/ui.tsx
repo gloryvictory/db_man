@@ -57,10 +57,10 @@ export function Select({
     <div ref={ref} className="relative" style={{ width }}>
       <button type="button" className="select" onClick={() => setOpen((o) => !o)}>
         {dot && <span className={`dot ${dot}`} />}
-        <span className={`flex-1 truncate text-left ${selected ? '' : 'text-[#5c6478]'}`}>
+        <span className={`flex-1 truncate text-left ${selected ? '' : 'text-[var(--faint)]'}`}>
           {selected?.label ?? placeholder ?? 'Выберите…'}
         </span>
-        <ChevronDown size={12} className="shrink-0 text-[#8b93a7]" />
+        <ChevronDown size={12} className="shrink-0 text-[var(--muted)]" />
       </button>
       {open && (
         <div className={`select-menu ${direction === 'up' ? 'up' : ''}`}>
@@ -206,8 +206,8 @@ export function Badge({ kind, children }: { kind: 'pk' | 'fk' | 'kind'; children
 export function Info({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div>
-      <div className="text-[11px] text-[#5c6478]">{label}</div>
-      <div className={`text-[12.5px] text-[#e7eaf0] ${mono ? 'font-mono' : ''}`}>{value}</div>
+      <div className="text-[11px] text-[var(--faint)]">{label}</div>
+      <div className={`text-[12.5px] text-[var(--text)] ${mono ? 'font-mono' : ''}`}>{value}</div>
     </div>
   );
 }

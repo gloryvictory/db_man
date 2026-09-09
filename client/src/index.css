@@ -8,20 +8,60 @@
   --bg-panel: #12151c;
   --surface: #181c26;
   --surface-hover: #1e2330;
+  --surface-elevated: #1b1e26;
   --border: #272c39;
   --border-strong: #333a4a;
   --text: #e7eaf0;
   --muted: #8b93a7;
   --faint: #5c6478;
+  --null: #6b7390;
   --accent: #35c98e;
   --accent-dim: #1f7a57;
+  --accent-hover: #3fd698;
   --accent-bg: #0f2b21;
+  --accent-bg-hover: #12372b;
+  --accent-fg: #06130e;
   --blue: #5aa7e8;
+  --blue-bg: #16283b;
   --amber: #e0a94f;
-  --red: #e06c6c;
-  --null: #6b7390;
+  --amber-bg: #3a2e14;
+  --red: #f0566a;
+  --red-bg: #3a1720;
+  --violet: #c9d2ff;
+  --cyan: #7fd4ff;
+  --scrollbar: #2a3040;
   --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+[data-theme='light'] {
+  --bg: #f4f5f7;
+  --bg-raised: #ffffff;
+  --bg-panel: #ffffff;
+  --surface: #eef0f4;
+  --surface-hover: #e4e7ed;
+  --surface-elevated: #ffffff;
+  --border: #e2e5eb;
+  --border-strong: #ccd2db;
+  --text: #1b1f27;
+  --muted: #5c6572;
+  --faint: #8a93a3;
+  --null: #9aa2b1;
+  --accent: #1f9d68;
+  --accent-dim: #178055;
+  --accent-hover: #178055;
+  --accent-bg: #e2f3ec;
+  --accent-bg-hover: #d3ebe0;
+  --accent-fg: #ffffff;
+  --blue: #1d6fd1;
+  --blue-bg: #ddebf8;
+  --amber: #a9741a;
+  --amber-bg: #f7ecd4;
+  --red: #d64343;
+  --red-bg: #f9e2e2;
+  --violet: #5f5fd1;
+  --cyan: #0d7d9e;
+  --scrollbar: #c6ccd6;
 }
 
 html,
@@ -55,16 +95,16 @@ ol {
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #2a3040 transparent;
+  scrollbar-color: var(--scrollbar) transparent;
 }
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 *::-webkit-scrollbar-thumb {
-  background: #2a3040;
+  background: var(--scrollbar);
   border-radius: 6px;
-  border: 2px solid #12151c;
+  border: 2px solid var(--bg-panel);
 }
 *::-webkit-scrollbar-track {
   background: transparent;
@@ -97,12 +137,12 @@ ol {
 .btn.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #06130e;
+  color: var(--accent-fg);
   font-weight: 600;
 }
 .btn.primary:hover:not(:disabled) {
-  background: #3fd698;
-  border-color: #3fd698;
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 .btn.subtle {
   background: transparent;
@@ -120,7 +160,7 @@ ol {
   color: var(--accent);
 }
 .btn.light:hover:not(:disabled) {
-  background: #12372b;
+  background: var(--accent-bg-hover);
   border-color: transparent;
 }
 .btn.icon {
@@ -195,11 +235,11 @@ ol {
   left: 0;
   right: 0;
   z-index: 60;
-  background: var(--surface);
+  background: var(--surface-elevated);
   border: 1px solid var(--border-strong);
   border-radius: 8px;
   padding: 4px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.25);
 }
 .select-menu.up {
   top: auto;
@@ -270,7 +310,7 @@ ol {
   background: var(--bg-raised);
   border: 1px solid var(--border-strong);
   border-radius: 10px;
-  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.3);
   max-width: calc(100vw - 40px);
   max-height: calc(100vh - 60px);
   display: flex;
@@ -363,11 +403,11 @@ ol {
   font-weight: 700;
 }
 .badge.fk {
-  background: #16283b;
+  background: var(--blue-bg);
   color: var(--blue);
   font-weight: 700;
 }
 .badge.kind {
-  background: #1b1e26;
+  background: var(--surface-elevated);
   color: var(--muted);
 }

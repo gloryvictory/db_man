@@ -19,7 +19,7 @@ export default function SqlView() {
 
   return (
     <div className="min-h-0 flex-1 overflow-auto p-4">
-      <pre className="whitespace-pre font-mono text-[12.5px] leading-relaxed text-[#e7eaf0]">{sql}</pre>
+      <pre className="whitespace-pre font-mono text-[12.5px] leading-relaxed text-[var(--text)]">{sql}</pre>
     </div>
   );
 }

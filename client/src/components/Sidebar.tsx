@@ -6,13 +6,13 @@ import { Loader } from './ui';
 function iconFor(kind: TreeNode['kind']) {
   switch (kind) {
     case 'conn':
-      return <Server size={13} className="text-[#35c98e]" />;
+      return <Server size={13} className="text-[var(--accent)]" />;
     case 'db':
-      return <Database size={13} className="text-[#5aa7e8]" />;
+      return <Database size={13} className="text-[var(--blue)]" />;
     case 'schema':
-      return <Layers size={13} className="text-[#e0a94f]" />;
+      return <Layers size={13} className="text-[var(--amber)]" />;
     default:
-      return <Table size={13} className="text-[#8b93a7]" />;
+      return <Table size={13} className="text-[var(--muted)]" />;
   }
 }
 
@@ -35,8 +35,8 @@ function NodeRow({ node, depth }: { node: TreeNode; depth: number }) {
   return (
     <div>
       <div
-        className={`flex cursor-pointer select-none items-center gap-1.5 rounded-md px-1.5 py-[3px] text-[12.5px] hover:bg-[#1e2330] ${
-          selected ? 'bg-[#0f2b21] text-[#35c98e]' : 'text-[#e7eaf0]'
+        className={`flex cursor-pointer select-none items-center gap-1.5 rounded-md px-1.5 py-[3px] text-[12.5px] hover:bg-[var(--surface-hover)] ${
+          selected ? 'bg-[var(--accent-bg)] text-[var(--accent)]' : 'text-[var(--text)]'
         }`}
         style={{ paddingLeft: 6 + depth * 14 }}
         onClick={() => {
@@ -51,7 +51,7 @@ function NodeRow({ node, depth }: { node: TreeNode; depth: number }) {
         }}
       >
         <span
-          className={`flex w-3 shrink-0 items-center justify-center text-[9px] text-[#5c6478] transition-transform ${
+          className={`flex w-3 shrink-0 items-center justify-center text-[9px] text-[var(--faint)] transition-transform ${
             expanded ? 'rotate-90' : ''
           }`}
         >
@@ -62,19 +62,19 @@ function NodeRow({ node, depth }: { node: TreeNode; depth: number }) {
           {node.label}
         </span>
         {node.kind === 'table' && (
-          <span className="ml-auto shrink-0 pl-2 font-mono text-[10px] text-[#5c6478]">
+          <span className="ml-auto shrink-0 pl-2 font-mono text-[10px] text-[var(--faint)]">
             {node.rowEstimate != null ? node.rowEstimate.toLocaleString('ru-RU') : ''}
           </span>
         )}
         {node.kind === 'table' && node.tableKind && node.tableKind !== 'table' && (
-          <span className="ml-1 shrink-0 rounded bg-[#1b1e26] px-1 font-mono text-[9px] text-[#8b93a7]">
+          <span className="ml-1 shrink-0 rounded bg-[var(--surface-elevated)] px-1 font-mono text-[9px] text-[var(--muted)]">
             {node.tableKind}
           </span>
         )}
       </div>
 
       {expanded && children && (
-        <div className="ml-[13px] border-l border-[#272c39]">
+        <div className="ml-[13px] border-l border-[var(--border)]">
           {children.map((c) => (
             <NodeRow key={c.id} node={c} depth={depth + 1} />
           ))}
@@ -95,10 +95,10 @@ export default function Sidebar() {
   const conn = store.connections.find((c) => c.id === store.activeConnId);
 
   return (
-    <aside className="flex w-[280px] shrink-0 flex-col border-r border-[#272c39] bg-[#12151c]">
+    <aside className="flex w-[280px] shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-panel)]">
       <div className="min-h-0 flex-1 overflow-auto p-2">
         {!store.activeConnId || !conn ? (
-          <div className="px-2 py-1 text-[12px] text-[#5c6478]">
+          <div className="px-2 py-1 text-[12px] text-[var(--faint)]">
             Добавьте подключение, чтобы начать работу.
           </div>
         ) : (
@@ -113,7 +113,7 @@ export default function Sidebar() {
               depth={0}
             />
             {!store.connected && (
-              <div className="px-6 py-1 text-[12px] text-[#5c6478]">
+              <div className="px-6 py-1 text-[12px] text-[var(--faint)]">
                 Не подключено — нажмите «Подключить».
               </div>
             )}

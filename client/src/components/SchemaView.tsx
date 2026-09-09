@@ -59,11 +59,11 @@ export default function SchemaView() {
   if (!id || !schema) return null;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-[#0e1015]">
-      <div className="border-b border-[#272c39] px-4 py-3">
+    <div className="flex min-h-0 flex-1 flex-col bg-[var(--bg)]">
+      <div className="border-b border-[var(--border)] px-4 py-3">
         <div className="flex items-baseline gap-2">
           <h1 className="font-mono text-[16px] font-semibold">{schema.schema}</h1>
-          <span className="text-[12px] text-[#8b93a7]">Схема</span>
+          <span className="text-[12px] text-[var(--muted)]">Схема</span>
         </div>
         <div className="mt-3">
           <Tabs
@@ -88,8 +88,8 @@ export default function SchemaView() {
             info ? (
               <div className="flex flex-col gap-5">
                 <section>
-                  <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#8b93a7]">Размер</h2>
-                  <div className="grid grid-cols-2 gap-x-8 gap-y-3 rounded-lg border border-[#272c39] bg-[#12151c] p-4 md:grid-cols-4">
+                  <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Размер</h2>
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-3 rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-4 md:grid-cols-4">
                     <Info label="Всего" value={info.total_size} mono />
                     <Info label="Таблицы" value={info.tables_size} mono />
                     <Info label="Индексы" value={info.indexes_size} mono />
@@ -97,8 +97,8 @@ export default function SchemaView() {
                   </div>
                 </section>
                 <section>
-                  <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#8b93a7]">Сведения</h2>
-                  <div className="grid grid-cols-2 gap-x-8 gap-y-3 rounded-lg border border-[#272c39] bg-[#12151c] p-4 md:grid-cols-3">
+                  <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Сведения</h2>
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-3 rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-4 md:grid-cols-3">
                     <Info label="Таблиц" value={info.table_count.toLocaleString('ru-RU')} mono />
                     <Info label="Индексов" value={info.index_count.toLocaleString('ru-RU')} mono />
                     <Info label="Владелец" value={info.owner} mono />
@@ -106,12 +106,12 @@ export default function SchemaView() {
                 </section>
               </div>
             ) : (
-              <div className="text-[12px] text-[#6b7390]">Нет данных</div>
+              <div className="text-[12px] text-[var(--null)]">Нет данных</div>
             )
           ) : view === 'service' ? (
             <div className="flex flex-col gap-5">
               <section>
-                <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#8b93a7]">Обслуживание</h2>
+                <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Обслуживание</h2>
                 <div className="mb-2 flex flex-wrap gap-2">
                   <Button
                     disabled={busy === 'vacuum'}
@@ -135,14 +135,14 @@ export default function SchemaView() {
                     REINDEX SCHEMA
                   </Button>
                 </div>
-                <div className="text-[11px] text-[#5c6478]">
+                <div className="text-[11px] text-[var(--faint)]">
                   Операции применяются ко всем таблицам схемы и могут занять время.
                 </div>
               </section>
 
               <section>
-                <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#8b93a7]">Статистика</h2>
-                <div className="grid grid-cols-2 gap-x-8 gap-y-3 rounded-lg border border-[#272c39] bg-[#12151c] p-4 md:grid-cols-4">
+                <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Статистика</h2>
+                <div className="grid grid-cols-2 gap-x-8 gap-y-3 rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-4 md:grid-cols-4">
                   <Info label="Таблиц" value={(stats?.table_count ?? 0).toLocaleString('ru-RU')} mono />
                   <Info label="Строк (live)" value={(stats?.live_tup ?? 0).toLocaleString('ru-RU')} mono />
                   <Info label="Мёртвых строк" value={(stats?.dead_tup ?? 0).toLocaleString('ru-RU')} mono />

@@ -47,12 +47,12 @@ export default function LogsModal({ open, onClose }: { open: boolean; onClose: (
           CSV · весь
         </Button>
         <div className="flex-1" />
-        <span className="font-mono text-[12px] text-[#8b93a7]">
+        <span className="font-mono text-[12px] text-[var(--muted)]">
           {total.toLocaleString('ru-RU')} записей
         </span>
       </div>
 
-      <div className="max-h-[58vh] overflow-auto rounded-md border border-[#272c39]">
+      <div className="max-h-[58vh] overflow-auto rounded-md border border-[var(--border)]">
         {loading ? (
           <div className="grid place-items-center py-16">
             <Loader />
@@ -60,42 +60,42 @@ export default function LogsModal({ open, onClose }: { open: boolean; onClose: (
         ) : (
           <table className="w-full border-collapse font-mono text-[11.5px]">
             <thead className="sticky top-0 z-10">
-              <tr className="bg-[#181c26]">
-                <th className="border-b border-[#333a4a] px-2 py-1.5 text-left font-medium text-[#8b93a7]">Время</th>
-                <th className="border-b border-[#333a4a] px-2 py-1.5 text-left font-medium text-[#8b93a7]">Сервер</th>
-                <th className="border-b border-[#333a4a] px-2 py-1.5 text-right font-medium text-[#8b93a7]">Порт</th>
-                <th className="border-b border-[#333a4a] px-2 py-1.5 text-left font-medium text-[#8b93a7]">БД</th>
-                <th className="border-b border-[#333a4a] px-2 py-1.5 text-left font-medium text-[#8b93a7]">Пользователь</th>
-                <th className="border-b border-[#333a4a] px-2 py-1.5 text-left font-medium text-[#8b93a7]">Запрос</th>
-                <th className="border-b border-[#333a4a] px-2 py-1.5 text-right font-medium text-[#8b93a7]">Строк</th>
-                <th className="border-b border-[#333a4a] px-2 py-1.5 text-right font-medium text-[#8b93a7]">мс</th>
+              <tr className="bg-[var(--surface)]">
+                <th className="border-b border-[var(--border-strong)] px-2 py-1.5 text-left font-medium text-[var(--muted)]">Время</th>
+                <th className="border-b border-[var(--border-strong)] px-2 py-1.5 text-left font-medium text-[var(--muted)]">Сервер</th>
+                <th className="border-b border-[var(--border-strong)] px-2 py-1.5 text-right font-medium text-[var(--muted)]">Порт</th>
+                <th className="border-b border-[var(--border-strong)] px-2 py-1.5 text-left font-medium text-[var(--muted)]">БД</th>
+                <th className="border-b border-[var(--border-strong)] px-2 py-1.5 text-left font-medium text-[var(--muted)]">Пользователь</th>
+                <th className="border-b border-[var(--border-strong)] px-2 py-1.5 text-left font-medium text-[var(--muted)]">Запрос</th>
+                <th className="border-b border-[var(--border-strong)] px-2 py-1.5 text-right font-medium text-[var(--muted)]">Строк</th>
+                <th className="border-b border-[var(--border-strong)] px-2 py-1.5 text-right font-medium text-[var(--muted)]">мс</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-2 py-4 text-center text-[#6b7390]">
+                  <td colSpan={8} className="px-2 py-4 text-center text-[var(--null)]">
                     Записей нет
                   </td>
                 </tr>
               ) : (
                 rows.map((l) => (
-                  <tr key={l.id} className="border-b border-[#272c39] align-top hover:bg-[#1e2330]">
-                    <td className="whitespace-nowrap px-2 py-1 text-[#6b7390]">{l.created_at}</td>
-                    <td className="whitespace-nowrap px-2 py-1 text-[#e7eaf0]" title={l.dsn ?? undefined}>
+                  <tr key={l.id} className="border-b border-[var(--border)] align-top hover:bg-[var(--surface-hover)]">
+                    <td className="whitespace-nowrap px-2 py-1 text-[var(--null)]">{l.created_at}</td>
+                    <td className="whitespace-nowrap px-2 py-1 text-[var(--text)]" title={l.dsn ?? undefined}>
                       {l.host ?? '—'}
                     </td>
-                    <td className="whitespace-nowrap px-2 py-1 text-right text-[#e7eaf0]">{l.port ?? '—'}</td>
-                    <td className="whitespace-nowrap px-2 py-1 text-[#e0a94f]">{l.database ?? '—'}</td>
-                    <td className="whitespace-nowrap px-2 py-1 text-[#e7eaf0]">{l.username ?? '—'}</td>
+                    <td className="whitespace-nowrap px-2 py-1 text-right text-[var(--text)]">{l.port ?? '—'}</td>
+                    <td className="whitespace-nowrap px-2 py-1 text-[var(--amber)]">{l.database ?? '—'}</td>
+                    <td className="whitespace-nowrap px-2 py-1 text-[var(--text)]">{l.username ?? '—'}</td>
                     <td
-                      className={`max-w-[340px] truncate px-2 py-1 ${l.error ? 'text-[#e06c6c]' : 'text-[#e7eaf0]'}`}
+                      className={`max-w-[340px] truncate px-2 py-1 ${l.error ? 'text-[var(--red)]' : 'text-[var(--text)]'}`}
                       title={(l.error ?? l.query) || undefined}
                     >
                       {l.error ?? l.query}
                     </td>
-                    <td className="whitespace-nowrap px-2 py-1 text-right text-[#e7eaf0]">{l.rows}</td>
-                    <td className="whitespace-nowrap px-2 py-1 text-right text-[#5c6478]">
+                    <td className="whitespace-nowrap px-2 py-1 text-right text-[var(--text)]">{l.rows}</td>
+                    <td className="whitespace-nowrap px-2 py-1 text-right text-[var(--faint)]">
                       {l.duration_ms.toFixed(1)}
                     </td>
                   </tr>
@@ -106,7 +106,7 @@ export default function LogsModal({ open, onClose }: { open: boolean; onClose: (
         )}
       </div>
 
-      <div className="mt-3 flex items-center gap-3 border-t border-[#272c39] pt-2 font-mono text-[11.5px] text-[#8b93a7]">
+      <div className="mt-3 flex items-center gap-3 border-t border-[var(--border)] pt-2 font-mono text-[11.5px] text-[var(--muted)]">
         <span>
           {total ? page * PAGE_SIZE + 1 : 0}–{Math.min((page + 1) * PAGE_SIZE, total)} из{' '}
           {total.toLocaleString('ru-RU')}

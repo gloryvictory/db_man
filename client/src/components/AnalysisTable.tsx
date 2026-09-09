@@ -44,20 +44,20 @@ function Th({
   return (
     <th
       onClick={() => onSort(col)}
-      className={`cursor-pointer select-none whitespace-nowrap border-b border-[#333a4a] px-3 py-2 font-medium text-[#8b93a7] ${
+      className={`cursor-pointer select-none whitespace-nowrap border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)] ${
         right ? 'text-right' : 'text-left'
       }`}
     >
       {label}
-      {active && <span className="ml-1 text-[#35c98e]">{sort!.dir === 'asc' ? '▲' : '▼'}</span>}
+      {active && <span className="ml-1 text-[var(--accent)]">{sort!.dir === 'asc' ? '▲' : '▼'}</span>}
     </th>
   );
 }
 
 function bloatColor(ratio: number): string {
-  if (ratio > 0.2) return '#f0566a';
-  if (ratio > 0.05) return '#e0a94f';
-  return '#5c6478';
+  if (ratio > 0.2) return 'var(--red)';
+  if (ratio > 0.05) return 'var(--amber)';
+  return 'var(--faint)';
 }
 
 export default function AnalysisTable({
@@ -160,8 +160,8 @@ export default function AnalysisTable({
   return (
     <section>
       <div className="mb-2 flex items-center gap-2">
-        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[#8b93a7]">Таблицы</h2>
-        <span className="font-mono text-[11px] text-[#5c6478]">{rows.length}</span>
+        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Таблицы</h2>
+        <span className="font-mono text-[11px] text-[var(--faint)]">{rows.length}</span>
         <div className="flex-1" />
         <Button size="xs" variant="subtle" onClick={doExport}>
           <Download size={12} />
@@ -169,10 +169,10 @@ export default function AnalysisTable({
         </Button>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-[#272c39]">
+      <div className="overflow-x-auto rounded-lg border border-[var(--border)]">
         <table className="w-full border-collapse font-mono text-[12px]">
           <thead>
-            <tr className="bg-[#181c26]">
+            <tr className="bg-[var(--surface)]">
               {showSchema && <Th col="schema" label="Схема" sort={sort} onSort={toggleSort} />}
               <Th col="name" label="Имя таблицы" sort={sort} onSort={toggleSort} />
               <Th col="comment" label="Комментарий" sort={sort} onSort={toggleSort} />
@@ -191,31 +191,31 @@ export default function AnalysisTable({
           </thead>
           <tbody>
             {sorted.map((r) => (
-              <tr key={`${r.schema ?? ''}.${r.name}`} className="border-b border-[#272c39] hover:bg-[#1e2330]">
-                {showSchema && <td className="px-3 py-1.5 text-[#e0a94f]">{r.schema}</td>}
-                <td className="px-3 py-1.5 text-[#e7eaf0]">{r.name}</td>
-                <td className="px-3 py-1.5 text-[#8b93a7]">
-                  {r.comment ?? <span className="text-[#6b7390]">—</span>}
+              <tr key={`${r.schema ?? ''}.${r.name}`} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)]">
+                {showSchema && <td className="px-3 py-1.5 text-[var(--amber)]">{r.schema}</td>}
+                <td className="px-3 py-1.5 text-[var(--text)]">{r.name}</td>
+                <td className="px-3 py-1.5 text-[var(--muted)]">
+                  {r.comment ?? <span className="text-[var(--null)]">—</span>}
                 </td>
-                <td className="px-3 py-1.5 text-[#8b93a7]">{r.kind}</td>
-                <td className="px-3 py-1.5 text-right text-[#c9d2ff]">{r.column_count}</td>
-                <td className="px-3 py-1.5 text-right text-[#e7eaf0]">{r.row_estimate.toLocaleString('ru-RU')}</td>
-                <td className="px-3 py-1.5 text-right text-[#e7eaf0]">{formatBytes(r.table_size)}</td>
-                <td className="px-3 py-1.5 text-right text-[#e7eaf0]">{formatBytes(r.indexes_size)}</td>
+                <td className="px-3 py-1.5 text-[var(--muted)]">{r.kind}</td>
+                <td className="px-3 py-1.5 text-right text-[var(--violet)]">{r.column_count}</td>
+                <td className="px-3 py-1.5 text-right text-[var(--text)]">{r.row_estimate.toLocaleString('ru-RU')}</td>
+                <td className="px-3 py-1.5 text-right text-[var(--text)]">{formatBytes(r.table_size)}</td>
+                <td className="px-3 py-1.5 text-right text-[var(--text)]">{formatBytes(r.indexes_size)}</td>
                 <td
                   className="px-3 py-1.5 text-right"
                   title={r.unused_index_count ? formatBytes(r.unused_index_bytes) : undefined}
-                  style={{ color: r.unused_index_count > 0 ? '#e0a94f' : '#5c6478' }}
+                  style={{ color: r.unused_index_count > 0 ? 'var(--amber)' : 'var(--faint)' }}
                 >
                   {r.unused_index_count || '—'}
                 </td>
                 <td
                   className="px-3 py-1.5 text-right"
-                  style={{ color: r.duplicate_index_count > 0 ? '#f0566a' : '#5c6478' }}
+                  style={{ color: r.duplicate_index_count > 0 ? 'var(--red)' : 'var(--faint)' }}
                 >
                   {r.duplicate_index_count || '—'}
                 </td>
-                <td className="px-3 py-1.5 text-right text-[#e7eaf0]">{formatBytes(r.total_size)}</td>
+                <td className="px-3 py-1.5 text-right text-[var(--text)]">{formatBytes(r.total_size)}</td>
                 <td
                   className="px-3 py-1.5 text-right"
                   title={`мёртвых кортежей: ${r.dead_tup.toLocaleString('ru-RU')}`}
@@ -223,11 +223,11 @@ export default function AnalysisTable({
                 >
                   {r.dead_ratio > 0 ? `${(r.dead_ratio * 100).toFixed(1)}%` : '—'}
                 </td>
-                <td className="px-3 py-1.5 text-[#5c6478]">{formatDateRel(r.last_vacuum)}</td>
-                <td className="px-3 py-1.5 text-[#5c6478]">
+                <td className="px-3 py-1.5 text-[var(--faint)]">{formatDateRel(r.last_vacuum)}</td>
+                <td className="px-3 py-1.5 text-[var(--faint)]">
                   {formatDateRel(r.last_analyze)}
                   {r.needs_analyze && (
-                    <span className="ml-1.5 rounded bg-[#3a2e14] px-1 py-0.5 text-[9px] font-semibold text-[#e0a94f]">
+                    <span className="ml-1.5 rounded bg-[var(--amber-bg)] px-1 py-0.5 text-[9px] font-semibold text-[var(--amber)]">
                       нужен
                     </span>
                   )}
@@ -236,14 +236,14 @@ export default function AnalysisTable({
             ))}
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={colCount} className="px-3 py-3 text-center text-[#6b7390]">
+                <td colSpan={colCount} className="px-3 py-3 text-center text-[var(--null)]">
                   Таблиц нет
                 </td>
               </tr>
             )}
           </tbody>
           <tfoot>
-            <tr className="border-t border-[#333a4a] bg-[#181c26] font-semibold text-[#e7eaf0]">
+            <tr className="border-t border-[var(--border-strong)] bg-[var(--surface)] font-semibold text-[var(--text)]">
               {showSchema ? <td /> : null}
               <td className="px-3 py-1.5">Итого</td>
               <td />
@@ -252,10 +252,10 @@ export default function AnalysisTable({
               <td className="px-3 py-1.5 text-right">{totals.rows.toLocaleString('ru-RU')}</td>
               <td className="px-3 py-1.5 text-right">{formatBytes(totals.table_size)}</td>
               <td className="px-3 py-1.5 text-right">{formatBytes(totals.indexes_size)}</td>
-              <td className="px-3 py-1.5 text-right" style={{ color: totals.unused_index_count ? '#e0a94f' : '#5c6478' }}>
+              <td className="px-3 py-1.5 text-right" style={{ color: totals.unused_index_count ? 'var(--amber)' : 'var(--faint)' }}>
                 {totals.unused_index_count || '—'}
               </td>
-              <td className="px-3 py-1.5 text-right" style={{ color: totals.duplicate_index_count ? '#f0566a' : '#5c6478' }}>
+              <td className="px-3 py-1.5 text-right" style={{ color: totals.duplicate_index_count ? 'var(--red)' : 'var(--faint)' }}>
                 {totals.duplicate_index_count || '—'}
               </td>
               <td className="px-3 py-1.5 text-right">{formatBytes(totals.total_size)}</td>
