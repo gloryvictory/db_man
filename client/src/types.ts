@@ -86,6 +86,8 @@ export interface IndexInfo {
   idx_scan: number;
   idx_tup_read: number;
   idx_tup_fetch: number;
+  unused: boolean;
+  duplicate: boolean;
 }
 
 export interface TableStats {
@@ -176,6 +178,13 @@ export interface SchemaTableRow {
   table_size: number;
   indexes_size: number;
   total_size: number;
+  dead_tup: number;
+  dead_ratio: number;
+  mod_since_analyze: number;
+  needs_analyze: boolean;
+  unused_index_count: number;
+  unused_index_bytes: number;
+  duplicate_index_count: number;
   last_vacuum: string | null;
   last_analyze: string | null;
 }
@@ -190,6 +199,13 @@ export interface DatabaseTableRow {
   table_size: number;
   indexes_size: number;
   total_size: number;
+  dead_tup: number;
+  dead_ratio: number;
+  mod_since_analyze: number;
+  needs_analyze: boolean;
+  unused_index_count: number;
+  unused_index_bytes: number;
+  duplicate_index_count: number;
   last_vacuum: string | null;
   last_analyze: string | null;
 }
@@ -209,4 +225,28 @@ export interface SchemaStats {
   last_autovacuum: string | null;
   last_analyze: string | null;
   last_autoanalyze: string | null;
+}
+
+export interface OverviewTable {
+  schema: string;
+  name: string;
+  rows: number;
+  total_size: number;
+  dead_tup: number;
+  dead_ratio: number;
+  unused_index_count: number;
+  unused_index_bytes: number;
+  duplicate_index_count: number;
+}
+
+export interface OverviewResult {
+  biggest: OverviewTable[];
+  bloated: OverviewTable[];
+  unused_indexes: OverviewTable[];
+  totals: {
+    dead_tuples: number;
+    unused_index_count: number;
+    unused_index_bytes: number;
+    duplicate_index_count: number;
+  };
 }

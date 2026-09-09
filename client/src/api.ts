@@ -1,4 +1,4 @@
-import type { StoredConnection, TableMeta, ColumnMeta, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats } from './types';
+import type { StoredConnection, TableMeta, ColumnMeta, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult } from './types';
 
 const BASE = '/api';
 const enc = encodeURIComponent;
@@ -66,6 +66,7 @@ export const api = {
       `/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables/${enc(table)}/rows` + qs(p)
     ),
   stats: (id: string, db: string) => http<StatsRow[]>(`/connections/${id}/databases/${enc(db)}/stats`),
+  overview: (id: string, db: string) => http<OverviewResult>(`/connections/${id}/databases/${enc(db)}/overview`),
   service: (id: string, db: string, schema: string, table: string) =>
     http<ServiceResult>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables/${enc(table)}/service`),
   reindex: (id: string, db: string, schema: string, table: string, index: string) =>

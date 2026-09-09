@@ -14,6 +14,13 @@ export interface AnalysisRow {
   table_size: number;
   indexes_size: number;
   total_size: number;
+  dead_tup: number;
+  dead_ratio: number;
+  mod_since_analyze: number;
+  needs_analyze: boolean;
+  unused_index_count: number;
+  unused_index_bytes: number;
+  duplicate_index_count: number;
   last_vacuum: string | null;
   last_analyze: string | null;
 }
@@ -45,6 +52,12 @@ function Th({
       {active && <span className="ml-1 text-[#35c98e]">{sort!.dir === 'asc' ? '▲' : '▼'}</span>}
     </th>
   );
+}
+
+function bloatColor(ratio: number): string {
+  if (ratio > 0.2) return '#f0566a';
+  if (ratio > 0.05) return '#e0a94f';
+  return '#5c6478';
 }
 
 export default function AnalysisTable({
@@ -79,8 +92,21 @@ export default function AnalysisTable({
           table_size: acc.table_size + r.table_size,
           indexes_size: acc.indexes_size + r.indexes_size,
           total_size: acc.total_size + r.total_size,
+          dead_tup: acc.dead_tup + r.dead_tup,
+          unused_index_count: acc.unused_index_count + r.unused_index_count,
+          unused_index_bytes: acc.unused_index_bytes + r.unused_index_bytes,
+          duplicate_index_count: acc.duplicate_index_count + r.duplicate_index_count,
         }),
-        { rows: 0, table_size: 0, indexes_size: 0, total_size: 0 }
+        {
+          rows: 0,
+          table_size: 0,
+          indexes_size: 0,
+          total_size: 0,
+          dead_tup: 0,
+          unused_index_count: 0,
+          unused_index_bytes: 0,
+          duplicate_index_count: 0,
+        }
       ),
     [rows]
   );
@@ -99,9 +125,14 @@ export default function AnalysisTable({
       'Строк (оценка)',
       'Таблица',
       'Индексы',
+      'Неисп. индексы',
+      'Дубл. индексы',
       'Всего',
+      'Bloat %',
+      'Мёртвых строк',
       'VACUUM',
       'ANALYZE',
+      'Нужен ANALYZE',
     ];
     const data = sorted.map((r) => [
       ...(showSchema ? [r.schema ?? ''] : []),
@@ -112,14 +143,19 @@ export default function AnalysisTable({
       r.row_estimate,
       formatBytes(r.table_size),
       formatBytes(r.indexes_size),
+      r.unused_index_count,
+      r.duplicate_index_count,
       formatBytes(r.total_size),
+      `${(r.dead_ratio * 100).toFixed(1)}%`,
+      r.dead_tup,
       r.last_vacuum ? new Date(r.last_vacuum).toLocaleString('ru-RU') : '',
       r.last_analyze ? new Date(r.last_analyze).toLocaleString('ru-RU') : '',
+      r.needs_analyze ? 'да' : 'нет',
     ]);
     exportToExcel(exportName, header, data);
   }
 
-  const colCount = 10 + (showSchema ? 1 : 0);
+  const colCount = 13 + (showSchema ? 1 : 0);
 
   return (
     <section>
@@ -133,7 +169,7 @@ export default function AnalysisTable({
         </Button>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-[#272c39]">
+      <div className="overflow-x-auto rounded-lg border border-[#272c39]">
         <table className="w-full border-collapse font-mono text-[12px]">
           <thead>
             <tr className="bg-[#181c26]">
@@ -145,7 +181,10 @@ export default function AnalysisTable({
               <Th col="row_estimate" label="Строк (оценка)" right sort={sort} onSort={toggleSort} />
               <Th col="table_size" label="Таблица" right sort={sort} onSort={toggleSort} />
               <Th col="indexes_size" label="Индексы" right sort={sort} onSort={toggleSort} />
+              <Th col="unused_index_count" label="Неисп. индексы" right sort={sort} onSort={toggleSort} />
+              <Th col="duplicate_index_count" label="Дубл. индексы" right sort={sort} onSort={toggleSort} />
               <Th col="total_size" label="Всего" right sort={sort} onSort={toggleSort} />
+              <Th col="dead_ratio" label="Bloat %" right sort={sort} onSort={toggleSort} />
               <Th col="last_vacuum" label="VACUUM" sort={sort} onSort={toggleSort} />
               <Th col="last_analyze" label="ANALYZE" sort={sort} onSort={toggleSort} />
             </tr>
@@ -163,9 +202,36 @@ export default function AnalysisTable({
                 <td className="px-3 py-1.5 text-right text-[#e7eaf0]">{r.row_estimate.toLocaleString('ru-RU')}</td>
                 <td className="px-3 py-1.5 text-right text-[#e7eaf0]">{formatBytes(r.table_size)}</td>
                 <td className="px-3 py-1.5 text-right text-[#e7eaf0]">{formatBytes(r.indexes_size)}</td>
+                <td
+                  className="px-3 py-1.5 text-right"
+                  title={r.unused_index_count ? formatBytes(r.unused_index_bytes) : undefined}
+                  style={{ color: r.unused_index_count > 0 ? '#e0a94f' : '#5c6478' }}
+                >
+                  {r.unused_index_count || '—'}
+                </td>
+                <td
+                  className="px-3 py-1.5 text-right"
+                  style={{ color: r.duplicate_index_count > 0 ? '#f0566a' : '#5c6478' }}
+                >
+                  {r.duplicate_index_count || '—'}
+                </td>
                 <td className="px-3 py-1.5 text-right text-[#e7eaf0]">{formatBytes(r.total_size)}</td>
+                <td
+                  className="px-3 py-1.5 text-right"
+                  title={`мёртвых кортежей: ${r.dead_tup.toLocaleString('ru-RU')}`}
+                  style={{ color: bloatColor(r.dead_ratio) }}
+                >
+                  {r.dead_ratio > 0 ? `${(r.dead_ratio * 100).toFixed(1)}%` : '—'}
+                </td>
                 <td className="px-3 py-1.5 text-[#5c6478]">{formatDateRel(r.last_vacuum)}</td>
-                <td className="px-3 py-1.5 text-[#5c6478]">{formatDateRel(r.last_analyze)}</td>
+                <td className="px-3 py-1.5 text-[#5c6478]">
+                  {formatDateRel(r.last_analyze)}
+                  {r.needs_analyze && (
+                    <span className="ml-1.5 rounded bg-[#3a2e14] px-1 py-0.5 text-[9px] font-semibold text-[#e0a94f]">
+                      нужен
+                    </span>
+                  )}
+                </td>
               </tr>
             ))}
             {sorted.length === 0 && (
@@ -186,7 +252,14 @@ export default function AnalysisTable({
               <td className="px-3 py-1.5 text-right">{totals.rows.toLocaleString('ru-RU')}</td>
               <td className="px-3 py-1.5 text-right">{formatBytes(totals.table_size)}</td>
               <td className="px-3 py-1.5 text-right">{formatBytes(totals.indexes_size)}</td>
+              <td className="px-3 py-1.5 text-right" style={{ color: totals.unused_index_count ? '#e0a94f' : '#5c6478' }}>
+                {totals.unused_index_count || '—'}
+              </td>
+              <td className="px-3 py-1.5 text-right" style={{ color: totals.duplicate_index_count ? '#f0566a' : '#5c6478' }}>
+                {totals.duplicate_index_count || '—'}
+              </td>
               <td className="px-3 py-1.5 text-right">{formatBytes(totals.total_size)}</td>
+              <td className="px-3 py-1.5 text-right">{totals.dead_tup.toLocaleString('ru-RU')}</td>
               <td />
               <td />
             </tr>

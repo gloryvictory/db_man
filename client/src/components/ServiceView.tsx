@@ -47,7 +47,7 @@ export default function ServiceView() {
   }
 
   function exportIndexes() {
-    const header = ['Индекс', 'Тип', 'Размер', 'Уникальный', 'Primary', 'Valid', 'Скан.', 'Определение'];
+    const header = ['Индекс', 'Тип', 'Размер', 'Уникальный', 'Primary', 'Valid', 'Скан.', 'Не используется', 'Дубликат', 'Определение'];
     const rows = (data?.indexes ?? []).map((ix) => [
       ix.name,
       ix.access_method,
@@ -56,6 +56,8 @@ export default function ServiceView() {
       ix.is_primary ? 'да' : 'нет',
       ix.is_valid ? 'да' : 'нет',
       ix.idx_scan,
+      ix.unused ? 'да' : 'нет',
+      ix.duplicate ? 'да' : 'нет',
       ix.definition,
     ]);
     exportToExcel(`${sel?.table ?? 'table'}_indexes`, header, rows);
@@ -137,6 +139,16 @@ export default function ServiceView() {
                           {ix.is_primary && <Badge kind="pk">PK</Badge>}
                           {ix.is_unique && !ix.is_primary && <Badge kind="fk">UNIQUE</Badge>}
                           {!ix.is_valid && <Badge kind="kind">invalid</Badge>}
+                          {ix.unused && (
+                            <span className="rounded bg-[#3a2e14] px-1 py-0.5 text-[9px] font-semibold text-[#e0a94f]">
+                              не используется
+                            </span>
+                          )}
+                          {ix.duplicate && (
+                            <span className="rounded bg-[#3a1720] px-1 py-0.5 text-[9px] font-semibold text-[#f0566a]">
+                              дубликат
+                            </span>
+                          )}
                           <Button
                             size="xs"
                             disabled={busy === `reindex:${ix.name}`}

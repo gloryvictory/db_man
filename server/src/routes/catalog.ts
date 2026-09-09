@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getConnection } from '../sqlite';
-import { listDatabases, listSchemas, listTables, getColumns, getStats } from '../db';
+import { listDatabases, listSchemas, listTables, getColumns, getStats, getOverview } from '../db';
 
 const r = Router();
 
@@ -41,6 +41,14 @@ r.get('/:connId/databases/:db/schemas/:schema/tables/:table/columns', async (req
 r.get('/:connId/databases/:db/stats', async (req, res, next) => {
   try {
     res.json(await getStats(req.params.connId, req.params.db));
+  } catch (e) {
+    next(e);
+  }
+});
+
+r.get('/:connId/databases/:db/overview', async (req, res, next) => {
+  try {
+    res.json(await getOverview(req.params.connId, req.params.db));
   } catch (e) {
     next(e);
   }

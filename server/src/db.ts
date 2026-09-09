@@ -315,6 +315,8 @@ export interface IndexInfo {
   idx_scan: number;
   idx_tup_read: number;
   idx_tup_fetch: number;
+  unused: boolean;
+  duplicate: boolean;
 }
 
 export interface TableStats {
@@ -388,7 +390,9 @@ export async function getTableService(connId: string, db: string, schema: string
        i.indisvalid AS is_valid,
        COALESCE(s.idx_scan, 0) AS idx_scan,
        COALESCE(s.idx_tup_read, 0) AS idx_tup_read,
-       COALESCE(s.idx_tup_fetch, 0) AS idx_tup_fetch
+       COALESCE(s.idx_tup_fetch, 0) AS idx_tup_fetch,
+       EXISTS (SELECT 1 FROM pg_constraint con WHERE con.conindid = idx.oid) AS is_constraint,
+       (count(*) OVER (PARTITION BY i.indrelid, i.indkey::text, COALESCE(i.indpred::text, ''))) > 1 AS duplicate
      FROM pg_index i
      JOIN pg_class c ON c.oid = i.indrelid
      JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -480,6 +484,8 @@ export async function getTableService(connId: string, db: string, schema: string
       idx_scan: Number(r.idx_scan),
       idx_tup_read: Number(r.idx_tup_read),
       idx_tup_fetch: Number(r.idx_tup_fetch),
+      unused: !r.is_primary && !r.is_constraint && Number(r.idx_scan) === 0,
+      duplicate: Boolean(r.duplicate),
     })),
     stats: statsRow
       ? {
@@ -727,6 +733,13 @@ export interface SchemaTableRow {
   table_size: number;
   indexes_size: number;
   total_size: number;
+  dead_tup: number;
+  dead_ratio: number;
+  mod_since_analyze: number;
+  needs_analyze: boolean;
+  unused_index_count: number;
+  unused_index_bytes: number;
+  duplicate_index_count: number;
   last_vacuum: string | null;
   last_analyze: string | null;
 }
@@ -796,6 +809,9 @@ export async function getSchemaAnalysis(connId: string, db: string, schema: stri
        pg_indexes_size(c.oid) AS indexes_size,
        pg_total_relation_size(c.oid) AS total_size,
        (SELECT count(*) FROM pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped) AS column_count,
+       COALESCE(st.n_live_tup, 0) AS live_tup,
+       COALESCE(st.n_dead_tup, 0) AS dead_tup,
+       COALESCE(st.n_mod_since_analyze, 0) AS mod_since_analyze,
        st.last_vacuum,
        st.last_analyze
      FROM pg_class c
@@ -806,18 +822,33 @@ export async function getSchemaAnalysis(connId: string, db: string, schema: stri
     [schema]
   );
 
-  return res.rows.map((r: Record<string, unknown>) => ({
-    name: String(r.name),
-    kind: String(r.kind),
-    comment: sanitize(r.comment) as string | null,
-    column_count: Number(r.column_count),
-    row_estimate: Number(r.row_estimate),
-    table_size: Number(r.table_size),
-    indexes_size: Number(r.indexes_size),
-    total_size: Number(r.total_size),
-    last_vacuum: sanitize(r.last_vacuum) as string | null,
-    last_analyze: sanitize(r.last_analyze) as string | null,
-  }));
+  const health = await getIndexHealth(connId, db, schema);
+
+  return res.rows.map((r: Record<string, unknown>) => {
+    const live = Number(r.live_tup);
+    const dead = Number(r.dead_tup);
+    const mod = Number(r.mod_since_analyze);
+    const ih = health.get(`${schema}.${String(r.name)}`) ?? { unused_count: 0, unused_bytes: 0, duplicate_count: 0 };
+    return {
+      name: String(r.name),
+      kind: String(r.kind),
+      comment: sanitize(r.comment) as string | null,
+      column_count: Number(r.column_count),
+      row_estimate: Number(r.row_estimate),
+      table_size: Number(r.table_size),
+      indexes_size: Number(r.indexes_size),
+      total_size: Number(r.total_size),
+      dead_tup: dead,
+      dead_ratio: live + dead > 0 ? dead / (live + dead) : 0,
+      mod_since_analyze: mod,
+      needs_analyze: live > 0 && (r.last_analyze == null || mod > Math.max(live * 0.1, 1000)),
+      unused_index_count: ih.unused_count,
+      unused_index_bytes: ih.unused_bytes,
+      duplicate_index_count: ih.duplicate_count,
+      last_vacuum: sanitize(r.last_vacuum) as string | null,
+      last_analyze: sanitize(r.last_analyze) as string | null,
+    };
+  });
 }
 
 export interface DatabaseTableRow {
@@ -830,6 +861,13 @@ export interface DatabaseTableRow {
   table_size: number;
   indexes_size: number;
   total_size: number;
+  dead_tup: number;
+  dead_ratio: number;
+  mod_since_analyze: number;
+  needs_analyze: boolean;
+  unused_index_count: number;
+  unused_index_bytes: number;
+  duplicate_index_count: number;
   last_vacuum: string | null;
   last_analyze: string | null;
 }
@@ -849,6 +887,9 @@ export async function getDatabaseAnalysis(connId: string, db: string): Promise<D
        pg_relation_size(c.oid) AS table_size,
        pg_indexes_size(c.oid) AS indexes_size,
        pg_total_relation_size(c.oid) AS total_size,
+       COALESCE(st.n_live_tup, 0) AS live_tup,
+       COALESCE(st.n_dead_tup, 0) AS dead_tup,
+       COALESCE(st.n_mod_since_analyze, 0) AS mod_since_analyze,
        st.last_vacuum,
        st.last_analyze
      FROM pg_class c
@@ -859,19 +900,34 @@ export async function getDatabaseAnalysis(connId: string, db: string): Promise<D
      ORDER BY n.nspname, c.relname`
   );
 
-  return res.rows.map((r: Record<string, unknown>) => ({
-    schema: String(r.schema),
-    name: String(r.name),
-    kind: String(r.kind),
-    comment: sanitize(r.comment) as string | null,
-    column_count: Number(r.column_count),
-    row_estimate: Number(r.row_estimate),
-    table_size: Number(r.table_size),
-    indexes_size: Number(r.indexes_size),
-    total_size: Number(r.total_size),
-    last_vacuum: sanitize(r.last_vacuum) as string | null,
-    last_analyze: sanitize(r.last_analyze) as string | null,
-  }));
+  const health = await getIndexHealth(connId, db);
+
+  return res.rows.map((r: Record<string, unknown>) => {
+    const live = Number(r.live_tup);
+    const dead = Number(r.dead_tup);
+    const mod = Number(r.mod_since_analyze);
+    const ih = health.get(`${String(r.schema)}.${String(r.name)}`) ?? { unused_count: 0, unused_bytes: 0, duplicate_count: 0 };
+    return {
+      schema: String(r.schema),
+      name: String(r.name),
+      kind: String(r.kind),
+      comment: sanitize(r.comment) as string | null,
+      column_count: Number(r.column_count),
+      row_estimate: Number(r.row_estimate),
+      table_size: Number(r.table_size),
+      indexes_size: Number(r.indexes_size),
+      total_size: Number(r.total_size),
+      dead_tup: dead,
+      dead_ratio: live + dead > 0 ? dead / (live + dead) : 0,
+      mod_since_analyze: mod,
+      needs_analyze: live > 0 && (r.last_analyze == null || mod > Math.max(live * 0.1, 1000)),
+      unused_index_count: ih.unused_count,
+      unused_index_bytes: ih.unused_bytes,
+      duplicate_index_count: ih.duplicate_count,
+      last_vacuum: sanitize(r.last_vacuum) as string | null,
+      last_analyze: sanitize(r.last_analyze) as string | null,
+    };
+  });
 }
 
 export interface SchemaStats {
@@ -969,4 +1025,130 @@ export async function reindexSchema(connId: string, db: string, schema: string):
   assertIdent(schema);
   const pool = getPool(connId, db);
   await q(pool, { connId, db }, `REINDEX SCHEMA ${quote(schema)}`);
+}
+
+// ---------- здоровье индексов и обзор ----------
+
+interface IndexHealthRow {
+  unused_count: number;
+  unused_bytes: number;
+  duplicate_count: number;
+}
+
+async function getIndexHealth(connId: string, db: string, schema?: string): Promise<Map<string, IndexHealthRow>> {
+  const pool = getPool(connId, db);
+  const schemaFilter = schema
+    ? 'n.nspname = $1'
+    : `n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname NOT LIKE 'pg\\_%' ESCAPE '\\'`;
+  const params = schema ? [schema] : [];
+  const res = await q(
+    pool,
+    { connId, db },
+    `SELECT
+       n.nspname AS schema,
+       c.relname AS table_name,
+       count(*) FILTER (WHERE i.indisprimary = false AND con.oid IS NULL AND COALESCE(s.idx_scan, 0) = 0) AS unused_count,
+       COALESCE(sum(pg_relation_size(idx.oid)) FILTER (WHERE i.indisprimary = false AND con.oid IS NULL AND COALESCE(s.idx_scan, 0) = 0), 0) AS unused_bytes,
+       count(*) FILTER (WHERE i.indisprimary = false)
+         - count(DISTINCT (i.indkey::text || '|' || COALESCE(i.indpred::text, ''))) FILTER (WHERE i.indisprimary = false) AS duplicate_count
+     FROM pg_index i
+     JOIN pg_class c ON c.oid = i.indrelid
+     JOIN pg_namespace n ON n.oid = c.relnamespace
+     JOIN pg_class idx ON idx.oid = i.indexrelid
+     LEFT JOIN pg_stat_user_indexes s ON s.indexrelid = idx.oid
+     LEFT JOIN pg_constraint con ON con.conindid = idx.oid
+     WHERE ${schemaFilter} AND c.relkind IN ('r', 'p', 'm')
+     GROUP BY n.nspname, c.relname`,
+    params
+  );
+  const map = new Map<string, IndexHealthRow>();
+  for (const r of res.rows as Record<string, unknown>[]) {
+    map.set(`${r.schema}.${r.table_name}`, {
+      unused_count: Number(r.unused_count),
+      unused_bytes: Number(r.unused_bytes),
+      duplicate_count: Number(r.duplicate_count),
+    });
+  }
+  return map;
+}
+
+export interface OverviewTable {
+  schema: string;
+  name: string;
+  rows: number;
+  total_size: number;
+  dead_tup: number;
+  dead_ratio: number;
+  unused_index_count: number;
+  unused_index_bytes: number;
+  duplicate_index_count: number;
+}
+
+export interface OverviewResult {
+  biggest: OverviewTable[];
+  bloated: OverviewTable[];
+  unused_indexes: OverviewTable[];
+  totals: {
+    dead_tuples: number;
+    unused_index_count: number;
+    unused_index_bytes: number;
+    duplicate_index_count: number;
+  };
+}
+
+export async function getOverview(connId: string, db: string): Promise<OverviewResult> {
+  const pool = getPool(connId, db);
+  const res = await q(
+    pool,
+    { connId, db },
+    `SELECT
+       n.nspname AS schema,
+       c.relname AS name,
+       GREATEST(c.reltuples::bigint, 0) AS rows,
+       pg_total_relation_size(c.oid) AS total_size,
+       COALESCE(st.n_live_tup, 0) AS live_tup,
+       COALESCE(st.n_dead_tup, 0) AS dead_tup
+     FROM pg_class c
+     JOIN pg_namespace n ON n.oid = c.relnamespace
+     LEFT JOIN pg_stat_all_tables st ON st.relid = c.oid
+     WHERE n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname NOT LIKE 'pg\\_%' ESCAPE '\\'
+       AND c.relkind IN ('r', 'p', 'm')`
+  );
+  const health = await getIndexHealth(connId, db);
+
+  const rows: OverviewTable[] = res.rows.map((r: Record<string, unknown>) => {
+    const live = Number(r.live_tup);
+    const dead = Number(r.dead_tup);
+    const ih = health.get(`${r.schema}.${r.name}`) ?? { unused_count: 0, unused_bytes: 0, duplicate_count: 0 };
+    return {
+      schema: String(r.schema),
+      name: String(r.name),
+      rows: Number(r.rows),
+      total_size: Number(r.total_size),
+      dead_tup: dead,
+      dead_ratio: live + dead > 0 ? dead / (live + dead) : 0,
+      unused_index_count: ih.unused_count,
+      unused_index_bytes: ih.unused_bytes,
+      duplicate_index_count: ih.duplicate_count,
+    };
+  });
+
+  const biggest = [...rows].sort((a, b) => b.total_size - a.total_size).slice(0, 20);
+  const bloated = rows.filter((r) => r.dead_tup > 0).sort((a, b) => b.dead_tup - a.dead_tup).slice(0, 20);
+  const unused_indexes = rows
+    .filter((r) => r.unused_index_count > 0)
+    .sort((a, b) => b.unused_index_bytes - a.unused_index_bytes)
+    .slice(0, 15);
+
+  const totals = rows.reduce(
+    (acc, r) => ({
+      dead_tuples: acc.dead_tuples + r.dead_tup,
+      unused_index_count: acc.unused_index_count + r.unused_index_count,
+      unused_index_bytes: acc.unused_index_bytes + r.unused_index_bytes,
+      duplicate_index_count: acc.duplicate_index_count + r.duplicate_index_count,
+    }),
+    { dead_tuples: 0, unused_index_count: 0, unused_index_bytes: 0, duplicate_index_count: 0 }
+  );
+
+  return { biggest, bloated, unused_indexes, totals };
 }
