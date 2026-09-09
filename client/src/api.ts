@@ -112,6 +112,8 @@ export const api = {
     http<DatabaseTableRow[]>(`/connections/${id}/databases/${enc(db)}/analysis`),
   databaseConfig: (id: string, db: string) =>
     http<ServerConfigRow[]>(`/connections/${id}/databases/${enc(db)}/config`),
+  databaseDdl: (id: string, db: string) =>
+    http<{ ddl: string }>(`/connections/${id}/databases/${enc(db)}/ddl`),
   schemaService: (id: string, db: string, schema: string) =>
     http<SchemaStats>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/service`),
   schemaVacuum: (id: string, db: string, schema: string) =>

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Eraser, Sparkles, RotateCcw } from 'lucide-react';
+import { Eraser, Sparkles, RotateCcw, Copy } from 'lucide-react';
 import { useStore } from '../store';
 import { api } from '../api';
 import { Button, Loader, Tabs, Info, Input } from './ui';
 import AnalysisTable from './AnalysisTable';
+import { SqlCode } from '../lib/sqlHighlight';
 import { formatDateRel, formatBytes } from '../lib/format';
 import type { DatabaseInfo, DatabaseStats, DatabaseTableRow, ServerConfigRow } from '../types';
 
@@ -16,7 +17,9 @@ export default function DatabaseView() {
   const [configRows, setConfigRows] = useState<ServerConfigRow[] | null>(null);
   const [configLoading, setConfigLoading] = useState(false);
   const [configSearch, setConfigSearch] = useState('');
-  const [view, setView] = useState<'info' | 'service' | 'analysis' | 'config'>('info');
+  const [ddl, setDdl] = useState<string | null>(null);
+  const [ddlLoading, setDdlLoading] = useState(false);
+  const [view, setView] = useState<'info' | 'service' | 'analysis' | 'config' | 'ddl'>('info');
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -62,6 +65,27 @@ export default function DatabaseView() {
     if (view === 'config') loadConfig();
   }, [view, loadConfig]);
 
+  const loadDdl = useCallback(async () => {
+    if (!id || !db || ddl) return;
+    setDdlLoading(true);
+    try {
+      setDdl((await api.databaseDdl(id, db)).ddl);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Ошибка');
+    } finally {
+      setDdlLoading(false);
+    }
+  }, [id, db, ddl]);
+
+  useEffect(() => {
+    if (view === 'ddl') loadDdl();
+  }, [view, loadDdl]);
+
+  function copyDdl() {
+    if (!ddl) return;
+    navigator.clipboard.writeText(ddl).then(() => toast.success('Скопировано'));
+  }
+
   async function action(key: string, fn: () => Promise<unknown>) {
     setBusy(key);
     try {
@@ -99,12 +123,13 @@ export default function DatabaseView() {
         <div className="mt-3">
           <Tabs
             value={view}
-            onChange={(v) => setView(v as 'info' | 'service' | 'analysis' | 'config')}
+            onChange={(v) => setView(v as 'info' | 'service' | 'analysis' | 'config' | 'ddl')}
             items={[
               { value: 'info', label: 'Информация' },
               { value: 'service', label: 'Сервис' },
               { value: 'analysis', label: 'Анализ' },
               { value: 'config', label: 'Конфигурация' },
+              { value: 'ddl', label: 'DDL' },
             ]}
           />
         </div>
@@ -238,6 +263,27 @@ export default function DatabaseView() {
                   </table>
                 </div>
               )}
+            </div>
+          ) : view === 'ddl' ? (
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <Button size="xs" variant="subtle" onClick={copyDdl} disabled={!ddl}>
+                  <Copy size={12} />
+                  Скопировать
+                </Button>
+                <span className="font-mono text-[11px] text-[var(--faint)]">
+                  {ddl ? `${ddl.length.toLocaleString('ru-RU')} симв.` : ''}
+                </span>
+              </div>
+              {ddlLoading ? (
+                <div className="grid h-40 place-items-center">
+                  <Loader />
+                </div>
+              ) : ddl ? (
+                <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-4">
+                  <SqlCode sql={ddl} />
+                </div>
+              ) : null}
             </div>
           ) : (
             <AnalysisTable rows={analysisRows} showSchema exportName={`${db}_tables`} />

@@ -1176,3 +1176,283 @@ export async function getServerConfig(connId: string, db: string): Promise<Serve
     value: String(r.value),
   }));
 }
+
+function sqlStr(s: string): string {
+  return `'${s.replace(/'/g, "''")}'`;
+}
+
+export async function getDatabaseDdl(connId: string, db: string): Promise<string> {
+  const pool = getPool(connId, db);
+  const meta = { connId, db };
+  const sys = `n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname NOT LIKE 'pg\\_%' ESCAPE '\\'`;
+  const out: string[] = [];
+
+  out.push(`-- Сценарий создания базы данных «${db}»`);
+  out.push(`-- Порядок: БД → расширения → схемы → последовательности → таблицы → комментарии → индексы → внешние ключи → представления`);
+  out.push(``);
+
+  // 1. База данных
+  const dbRes = await q(
+    pool,
+    meta,
+    `SELECT pg_get_userbyid(d.datdba) AS owner, pg_encoding_to_char(d.encoding) AS encoding,
+            d.datcollate, d.datctype, d.datconnlimit
+     FROM pg_database d WHERE d.datname = $1`,
+    [db]
+  );
+  const di = dbRes.rows[0] as Record<string, unknown>;
+  out.push(`-- ===== База данных =====`);
+  out.push(`CREATE DATABASE ${quote(db)}`);
+  out.push(`  WITH OWNER = ${quote(String(di.owner))}`);
+  out.push(`       ENCODING = ${sqlStr(String(di.encoding))}`);
+  out.push(`       LC_COLLATE = ${sqlStr(String(di.datcollate))}`);
+  out.push(`       LC_CTYPE = ${sqlStr(String(di.datctype))}`);
+  out.push(`       TEMPLATE = template0`);
+  if (Number(di.datconnlimit) >= 0) out.push(`       CONNECTION LIMIT = ${di.datconnlimit}`);
+  out.push(`;`);
+  out.push(``);
+
+  // 2. Расширения
+  const extRes = await q(
+    pool,
+    meta,
+    `SELECT e.extname, n.nspname AS schema FROM pg_extension e
+     JOIN pg_namespace n ON n.oid = e.extnamespace
+     WHERE e.extname <> 'plpgsql' ORDER BY e.extname`
+  );
+  if (extRes.rows.length) {
+    out.push(`-- ===== Расширения =====`);
+    for (const r of extRes.rows as Record<string, unknown>[]) {
+      let s = `CREATE EXTENSION IF NOT EXISTS ${quote(String(r.extname))}`;
+      if (String(r.schema) !== 'public') s += ` WITH SCHEMA ${quote(String(r.schema))}`;
+      out.push(s + `;`);
+    }
+    out.push(``);
+  }
+
+  // 3. Схемы
+  const schRes = await q(pool, meta, `SELECT nspname FROM pg_namespace n WHERE ${sys} ORDER BY nspname`);
+  if (schRes.rows.length) {
+    out.push(`-- ===== Схемы =====`);
+    for (const r of schRes.rows as Record<string, unknown>[]) out.push(`CREATE SCHEMA IF NOT EXISTS ${quote(String(r.nspname))};`);
+    out.push(``);
+  }
+
+  // 4. Последовательности (не принадлежащие serial-колонкам)
+  const seqRes = await q(
+    pool,
+    meta,
+    `SELECT n.nspname AS schema, c.relname AS name, s.seqstart, s.seqincrement, s.seqmin, s.seqmax, s.seqcache, s.seqcycle
+     FROM pg_class c
+     JOIN pg_namespace n ON n.oid = c.relnamespace
+     JOIN pg_sequence s ON s.seqrelid = c.oid
+     WHERE ${sys} AND c.relkind = 'S'
+       AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = c.oid AND d.deptype = 'a')
+     ORDER BY n.nspname, c.relname`
+  );
+  if (seqRes.rows.length) {
+    out.push(`-- ===== Последовательности =====`);
+    for (const r of seqRes.rows as Record<string, unknown>[]) {
+      out.push(
+        `CREATE SEQUENCE ${quote(String(r.schema))}.${quote(String(r.name))} ` +
+          `START WITH ${r.seqstart} INCREMENT BY ${r.seqincrement} MINVALUE ${r.seqmin} MAXVALUE ${r.seqmax} CACHE ${r.seqcache}${r.seqcycle ? ' CYCLE' : ''};`
+      );
+    }
+    out.push(``);
+  }
+
+  // 5. Таблицы (+ первичные ключи и UNIQUE-ограничения)
+  const colsRes = await q(
+    pool,
+    meta,
+    `SELECT n.nspname AS schema, c.relname AS tname, a.attname AS col,
+            format_type(a.atttypid, a.atttypmod) AS type, a.attnotnull AS not_null,
+            pg_get_expr(d.adbin, d.adrelid) AS default_value, a.attidentity AS identity, a.attnum
+     FROM pg_class c
+     JOIN pg_namespace n ON n.oid = c.relnamespace
+     JOIN pg_attribute a ON a.attrelid = c.oid
+     LEFT JOIN pg_attrdef d ON d.adrelid = c.oid AND d.adnum = a.attnum
+     WHERE ${sys} AND c.relkind IN ('r','p') AND a.attnum > 0 AND NOT a.attisdropped
+     ORDER BY n.nspname, c.relname, a.attnum`
+  );
+
+  const pkRes = await q(
+    pool,
+    meta,
+    `SELECT n.nspname AS schema, c.relname AS tname, con.conname,
+            array_agg(a.attname::text ORDER BY array_position(con.conkey, a.attnum)) AS cols
+     FROM pg_constraint con
+     JOIN pg_class c ON c.oid = con.conrelid
+     JOIN pg_namespace n ON n.oid = c.relnamespace
+     JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = ANY(con.conkey)
+     WHERE ${sys} AND con.contype = 'p'
+     GROUP BY n.nspname, c.relname, con.conname`
+  );
+
+  const uqRes = await q(
+    pool,
+    meta,
+    `SELECT n.nspname AS schema, c.relname AS tname, con.conname,
+            array_agg(a.attname::text ORDER BY array_position(con.conkey, a.attnum)) AS cols
+     FROM pg_constraint con
+     JOIN pg_class c ON c.oid = con.conrelid
+     JOIN pg_namespace n ON n.oid = c.relnamespace
+     JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = ANY(con.conkey)
+     WHERE ${sys} AND con.contype = 'u'
+     GROUP BY n.nspname, c.relname, con.conname`
+  );
+
+  const colsByTable = new Map<string, Record<string, unknown>[]>();
+  for (const r of colsRes.rows as Record<string, unknown>[]) {
+    const key = `${r.schema}.${r.tname}`;
+    if (!colsByTable.has(key)) colsByTable.set(key, []);
+    colsByTable.get(key)!.push(r);
+  }
+  const pkByTable = new Map<string, Record<string, unknown>[]>();
+  for (const r of pkRes.rows as Record<string, unknown>[]) {
+    const key = `${r.schema}.${r.tname}`;
+    if (!pkByTable.has(key)) pkByTable.set(key, []);
+    pkByTable.get(key)!.push(r);
+  }
+  const uqByTable = new Map<string, Record<string, unknown>[]>();
+  for (const r of uqRes.rows as Record<string, unknown>[]) {
+    const key = `${r.schema}.${r.tname}`;
+    if (!uqByTable.has(key)) uqByTable.set(key, []);
+    uqByTable.get(key)!.push(r);
+  }
+
+  if (colsByTable.size) {
+    out.push(`-- ===== Таблицы =====`);
+    for (const [key, cols] of colsByTable) {
+      const [schema, tname] = key.split('.');
+      const colDefs = cols.map((r) => {
+        let d = `  ${quote(String(r.col))} ${r.type}`;
+        if (r.identity === 'a') d += ' GENERATED ALWAYS AS IDENTITY';
+        else if (r.identity === 'd') d += ' GENERATED BY DEFAULT AS IDENTITY';
+        else if (r.default_value) d += ` DEFAULT ${r.default_value}`;
+        if (r.not_null) d += ' NOT NULL';
+        return d;
+      });
+      const constrs: string[] = [];
+      for (const p of pkByTable.get(key) ?? [])
+        constrs.push(`  CONSTRAINT ${quote(String(p.conname))} PRIMARY KEY (${(p.cols as string[]).map(quote).join(', ')})`);
+      for (const u of uqByTable.get(key) ?? [])
+        constrs.push(`  CONSTRAINT ${quote(String(u.conname))} UNIQUE (${(u.cols as string[]).map(quote).join(', ')})`);
+      out.push(`CREATE TABLE ${quote(schema)}.${quote(tname)} (`);
+      out.push([...colDefs, ...constrs].join(',\n'));
+      out.push(`);`);
+      out.push(``);
+    }
+  }
+
+  // 6. Комментарии (таблицы и колонки)
+  const tcRes = await q(
+    pool,
+    meta,
+    `SELECT n.nspname AS schema, c.relname AS tname, obj_description(c.oid, 'pg_class') AS comment
+     FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE ${sys} AND c.relkind IN ('r','p','v','m') AND obj_description(c.oid, 'pg_class') IS NOT NULL
+     ORDER BY n.nspname, c.relname`
+  );
+  const ccRes = await q(
+    pool,
+    meta,
+    `SELECT n.nspname AS schema, c.relname AS tname, a.attname AS col, col_description(c.oid, a.attnum) AS comment
+     FROM pg_class c
+     JOIN pg_namespace n ON n.oid = c.relnamespace
+     JOIN pg_attribute a ON a.attrelid = c.oid
+     WHERE ${sys} AND c.relkind IN ('r','p','v','m') AND a.attnum > 0 AND NOT a.attisdropped
+       AND col_description(c.oid, a.attnum) IS NOT NULL
+     ORDER BY n.nspname, c.relname, a.attnum`
+  );
+  if (tcRes.rows.length || ccRes.rows.length) {
+    out.push(`-- ===== Комментарии =====`);
+    for (const r of tcRes.rows as Record<string, unknown>[])
+      out.push(`COMMENT ON TABLE ${quote(String(r.schema))}.${quote(String(r.tname))} IS ${sqlStr(String(r.comment))};`);
+    for (const r of ccRes.rows as Record<string, unknown>[])
+      out.push(`COMMENT ON COLUMN ${quote(String(r.schema))}.${quote(String(r.tname))}.${quote(String(r.col))} IS ${sqlStr(String(r.comment))};`);
+    out.push(``);
+  }
+
+  // 7. Индексы (не связанные с ограничениями)
+  const idxRes = await q(
+    pool,
+    meta,
+    `SELECT pg_get_indexdef(idx.oid) AS def
+     FROM pg_index i
+     JOIN pg_class c ON c.oid = i.indrelid
+     JOIN pg_namespace n ON n.oid = c.relnamespace
+     JOIN pg_class idx ON idx.oid = i.indexrelid
+     LEFT JOIN pg_constraint con ON con.conindid = idx.oid
+     WHERE ${sys} AND con.oid IS NULL
+     ORDER BY n.nspname, c.relname, idx.relname`
+  );
+  if (idxRes.rows.length) {
+    out.push(`-- ===== Индексы =====`);
+    for (const r of idxRes.rows as Record<string, unknown>[]) out.push(String(r.def) + ';');
+    out.push(``);
+  }
+
+  // 8. Внешние ключи
+  const fkRes = await q(
+    pool,
+    meta,
+    `SELECT n.nspname AS schema, c.relname AS tname, con.conname,
+            array_agg(a.attname::text ORDER BY array_position(con.conkey, a.attnum)) AS cols,
+            rn.nspname AS ref_schema, rc.relname AS ref_table,
+            array_agg(ra.attname::text ORDER BY array_position(con.confkey, ra.attnum)) AS ref_cols
+     FROM pg_constraint con
+     JOIN pg_class c ON c.oid = con.conrelid
+     JOIN pg_namespace n ON n.oid = c.relnamespace
+     JOIN pg_class rc ON rc.oid = con.confrelid
+     JOIN pg_namespace rn ON rn.oid = rc.relnamespace
+     JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = ANY(con.conkey)
+     JOIN pg_attribute ra ON ra.attrelid = rc.oid AND ra.attnum = ANY(con.confkey)
+     WHERE ${sys} AND con.contype = 'f'
+     GROUP BY n.nspname, c.relname, con.conname, rn.nspname, rc.relname`
+  );
+  if (fkRes.rows.length) {
+    out.push(`-- ===== Внешние ключи =====`);
+    for (const r of fkRes.rows as Record<string, unknown>[]) {
+      out.push(
+        `ALTER TABLE ${quote(String(r.schema))}.${quote(String(r.tname))} ` +
+          `ADD CONSTRAINT ${quote(String(r.conname))} ` +
+          `FOREIGN KEY (${(r.cols as string[]).map(quote).join(', ')}) ` +
+          `REFERENCES ${quote(String(r.ref_schema))}.${quote(String(r.ref_table))} (${(r.ref_cols as string[]).map(quote).join(', ')});`
+      );
+    }
+    out.push(``);
+  }
+
+  // 9. Представления
+  const viewRes = await q(
+    pool,
+    meta,
+    `SELECT n.nspname AS schema, c.relname AS name, pg_get_viewdef(c.oid, true) AS def
+     FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE ${sys} AND c.relkind = 'v' ORDER BY n.nspname, c.relname`
+  );
+  if (viewRes.rows.length) {
+    out.push(`-- ===== Представления =====`);
+    for (const r of viewRes.rows as Record<string, unknown>[])
+      out.push(`CREATE VIEW ${quote(String(r.schema))}.${quote(String(r.name))} AS\n${r.def};`);
+    out.push(``);
+  }
+
+  // 10. Материализованные представления
+  const matRes = await q(
+    pool,
+    meta,
+    `SELECT n.nspname AS schema, c.relname AS name, pg_get_viewdef(c.oid, true) AS def
+     FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE ${sys} AND c.relkind = 'm' ORDER BY n.nspname, c.relname`
+  );
+  if (matRes.rows.length) {
+    out.push(`-- ===== Материализованные представления =====`);
+    for (const r of matRes.rows as Record<string, unknown>[])
+      out.push(`CREATE MATERIALIZED VIEW ${quote(String(r.schema))}.${quote(String(r.name))} AS\n${r.def};`);
+    out.push(``);
+  }
+
+  return out.join('\n');
+}
