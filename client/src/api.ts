@@ -1,6 +1,7 @@
 import type { StoredConnection, TableMeta, ColumnMeta, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow } from './types';
 
-const BASE = '/api';
+const BASE_URL = (import.meta.env.BASE_URL ?? '/').replace(/\/+$/, ''); // '' (корень) или '/db_man'
+const BASE = BASE_URL + '/api';
 const enc = encodeURIComponent;
 
 async function http<T>(url: string, init?: RequestInit): Promise<T> {
@@ -125,9 +126,9 @@ export const api = {
   logs: (limit: number, offset: number) => http<LogsResult>(`/logs?limit=${limit}&offset=${offset}`),
   clearLogs: () => http<{ ok: boolean }>('/logs', { method: 'DELETE' }),
   exportUrl: (id: string, db: string, schema: string, table: string, format: 'xlsx' | 'csv') =>
-    `/api/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables/${enc(table)}/export?format=${format}`,
+    `${BASE}/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables/${enc(table)}/export?format=${format}`,
   logsExportUrl: (format: 'xlsx' | 'csv', page?: { limit: number; offset: number }) => {
     const p = page ? `?format=${format}&limit=${page.limit}&offset=${page.offset}` : `?format=${format}`;
-    return `/api/logs/export${p}`;
+    return `${BASE}/logs/export${p}`;
   },
 };

@@ -6,6 +6,9 @@
 
 ![db_man — PostgreSQL Browser](docs/screenshot.png)
 
+Установка под РЕД ОС (systemd + nginx на `http://SERVER/db_man`) —
+см. [docs/install-redos.md](docs/install-redos.md).
+
 ## Возможности
 
 - **Дерево БД** — иерархия подключений, баз, схем и таблиц с ленивой загрузкой

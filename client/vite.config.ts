@@ -7,6 +7,7 @@ interface ClientConfig {
   host?: string;
   port?: number;
   apiProxy?: string;
+  basePath?: string;
 }
 
 function loadConfig(): { client?: ClientConfig } {
@@ -29,6 +30,8 @@ const client = cfg.client ?? {};
 
 export default defineConfig({
   plugins: [react()],
+  // базовый путь приложения: пустая строка -> корень, "/db_man" -> http://SERVER/db_man
+  base: client.basePath ? client.basePath + '/' : '/',
   server: {
     host: client.host ?? '127.0.0.1',
     port: Number(client.port ?? 5173),
