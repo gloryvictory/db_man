@@ -118,6 +118,7 @@ export interface ServiceResult {
   stats: TableStats | null;
   geometry_columns: string[];
   spatial_indexes: SpatialIndexInfo[];
+  extensions: string[];
 }
 
 export interface DatabaseInfo {

@@ -70,6 +70,7 @@ export default function ServiceView() {
   const geoCols = data?.geometry_columns ?? [];
   const indexedCols = new Set((data?.spatial_indexes ?? []).map((si) => si.column_name));
   const missingCols = geoCols.filter((c) => !indexedCols.has(c));
+  const postgis = (data?.extensions ?? []).includes('postgis');
 
   return (
     <div className="min-h-0 flex-1 overflow-auto p-4">
@@ -183,7 +184,7 @@ export default function ServiceView() {
           </section>
 
           {/* Пространственный индекс */}
-          {geoCols.length > 0 && (
+          {postgis && geoCols.length > 0 && (
             <section>
               <div className="mb-2 flex items-center gap-2">
                 <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">

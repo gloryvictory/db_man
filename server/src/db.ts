@@ -347,6 +347,7 @@ export interface ServiceResult {
   stats: TableStats | null;
   geometry_columns: string[];
   spatial_indexes: SpatialIndexInfo[];
+  extensions: string[];
 }
 
 export async function getTableService(connId: string, db: string, schema: string, table: string): Promise<ServiceResult> {
@@ -457,6 +458,8 @@ export async function getTableService(connId: string, db: string, schema: string
   const infoRow = info.rows[0] as Record<string, unknown> | undefined;
   const statsRow = stats.rows[0] as Record<string, unknown> | undefined;
 
+  const extensions = await q(pool, { connId, db }, `SELECT extname FROM pg_extension ORDER BY extname`);
+
   return {
     table: infoRow
       ? {
@@ -510,6 +513,7 @@ export async function getTableService(connId: string, db: string, schema: string
       size: String(r.size),
       column_name: String(r.column_name),
     })),
+    extensions: extensions.rows.map((r: Record<string, unknown>) => String(r.extname)),
   };
 }
 
