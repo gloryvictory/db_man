@@ -24,7 +24,7 @@ function escapeHtml(s: string): string {
 }
 
 export function highlightSqlHtml(sql: string): string {
-  const re = /(--[^\n]*)|('(?:[^']|'')*')|(\d+(?:\.\d+)?)|([A-Za-z_][A-Za-z0-9_]*)|(\s+)|([^\sA-Za-z0-9_]+)/g;
+  const re = /(--[^\n]*)|('(?:[^']|'')*')|(\d+(?:\.\d+)?)|([A-Za-z_][A-Za-z0-9_]*)|(\s+)|([^\sA-Za-z0-9_']+)|(.)/g;
   let out = '';
   let m: RegExpExecArray | null;
   while ((m = re.exec(sql)) !== null) {
