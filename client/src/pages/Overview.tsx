@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useStore } from '../store';
 import { api } from '../api';
-import { Select, Loader, Info } from '../components/ui';
+import { Select, Loader, Info, Tabs } from '../components/ui';
 import { formatBytes } from '../lib/format';
 import type { OverviewResult } from '../types';
 
@@ -19,6 +19,7 @@ export default function Overview() {
   const [db, setDb] = useState<string | null>(null);
   const [data, setData] = useState<OverviewResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<'size' | 'count'>('size');
 
   useEffect(() => {
     if (!store.connected || !store.activeConnId) return;
@@ -50,7 +51,9 @@ export default function Overview() {
   }
 
   const biggest = (data?.biggest ?? []).map((t) => ({ name: `${t.schema}.${t.name}`, value: t.total_size }));
+  const byRows = (data?.byRows ?? []).map((t) => ({ name: `${t.schema}.${t.name}`, value: t.rows }));
   const bloated = (data?.bloated ?? []).map((t) => ({ name: `${t.schema}.${t.name}`, value: t.dead_tup }));
+  const isSize = mode === 'size';
 
   return (
     <div className="h-full overflow-auto p-6">
@@ -64,6 +67,16 @@ export default function Overview() {
           placeholder="База данных"
           searchable
         />
+        <div className="ml-auto">
+          <Tabs
+            value={mode}
+            onChange={(v) => setMode(v as 'size' | 'count')}
+            items={[
+              { value: 'size', label: 'По размеру' },
+              { value: 'count', label: 'По количеству' },
+            ]}
+          />
+        </div>
       </div>
 
       {loading ? (
@@ -88,18 +101,20 @@ export default function Overview() {
             </div>
           </div>
 
-          {/* Крупнейшие */}
+          {/* Крупнейшие / по количеству */}
           <section>
-            <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Крупнейшие таблицы</h2>
+            <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+              {isSize ? 'Крупнейшие таблицы' : 'Таблицы по количеству строк'}
+            </h2>
             <div className="h-[420px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={biggest} layout="vertical" margin={{ left: 20 }}>
+                <BarChart data={isSize ? biggest : byRows} layout="vertical" margin={{ left: 20 }}>
                   <CartesianGrid stroke="var(--border)" horizontal={false} />
                   <XAxis
                     type="number"
                     stroke="var(--faint)"
                     tick={{ fill: 'var(--muted)', fontSize: 11 }}
-                    tickFormatter={(v) => formatBytes(Number(v))}
+                    tickFormatter={isSize ? (v) => formatBytes(Number(v)) : (v) => Number(v).toLocaleString('ru-RU')}
                   />
                   <YAxis
                     type="category"
@@ -108,7 +123,14 @@ export default function Overview() {
                     stroke="var(--faint)"
                     tick={{ fill: 'var(--muted)', fontSize: 11, fontFamily: 'monospace' }}
                   />
-                  <Tooltip contentStyle={tooltipStyle} formatter={(v) => [formatBytes(Number(v)), 'размер']} />
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    formatter={
+                      isSize
+                        ? (v) => [formatBytes(Number(v)), 'размер']
+                        : (v) => [Number(v).toLocaleString('ru-RU'), 'строк']
+                    }
+                  />
                   <Bar dataKey="value" fill="var(--accent)" radius={[0, 3, 3, 0]} />
                 </BarChart>
               </ResponsiveContainer>

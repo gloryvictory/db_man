@@ -1232,6 +1232,7 @@ export interface OverviewTable {
 
 export interface OverviewResult {
   biggest: OverviewTable[];
+  byRows: OverviewTable[];
   bloated: OverviewTable[];
   unused_indexes: OverviewTable[];
   totals: {
@@ -1280,6 +1281,7 @@ export async function getOverview(connId: string, db: string): Promise<OverviewR
   });
 
   const biggest = [...rows].sort((a, b) => b.total_size - a.total_size).slice(0, 20);
+  const byRows = [...rows].sort((a, b) => b.rows - a.rows).slice(0,20);
   const bloated = rows.filter((r) => r.dead_tup > 0).sort((a, b) => b.dead_tup - a.dead_tup).slice(0, 20);
   const unused_indexes = rows
     .filter((r) => r.unused_index_count > 0)
@@ -1296,7 +1298,7 @@ export async function getOverview(connId: string, db: string): Promise<OverviewR
     { dead_tuples: 0, unused_index_count: 0, unused_index_bytes: 0, duplicate_index_count: 0 }
   );
 
-  return { biggest, bloated, unused_indexes, totals };
+  return { biggest, byRows, bloated, unused_indexes, totals };
 }
 
 export interface ServerConfigRow {

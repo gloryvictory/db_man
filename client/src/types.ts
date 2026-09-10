@@ -243,6 +243,7 @@ export interface OverviewTable {
 
 export interface OverviewResult {
   biggest: OverviewTable[];
+  byRows: OverviewTable[];
   bloated: OverviewTable[];
   unused_indexes: OverviewTable[];
   totals: {
