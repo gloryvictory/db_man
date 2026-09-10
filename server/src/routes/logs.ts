@@ -8,11 +8,12 @@ r.get('/', (req, res) => {
   const q = req.query as Record<string, string>;
   const limit = Math.min(parseInt(q.limit, 10) || 100, 1000);
   const offset = Math.max(parseInt(q.offset, 10) || 0, 0);
-  res.json({ rows: listLogs(limit, offset), total: countLogs(), limit, offset });
+  const isAdmin = req.user!.role === 'admin';
+  res.json({ rows: listLogs(limit, offset, req.user!.id, isAdmin), total: countLogs(req.user!.id, isAdmin), limit, offset });
 });
 
-r.delete('/', (_req, res) => {
-  clearLogs();
+r.delete('/', (req, res) => {
+  clearLogs(req.user!.id, req.user!.role === 'admin');
   res.json({ ok: true });
 });
 
@@ -44,7 +45,7 @@ r.get('/export', (req, res) => {
   const limit = isPage ? Math.min(parseInt(q.limit, 10) || 100, 100000) : undefined;
   const offset = isPage ? Math.max(parseInt(q.offset, 10) || 0, 0) : undefined;
 
-  const rows = listLogs(limit, offset) as Record<string, unknown>[];
+  const rows = listLogs(limit, offset, req.user!.id, req.user!.role === 'admin') as Record<string, unknown>[];
   const header = ['Время', 'Сервер', 'Порт', 'БД', 'Пользователь', 'DSN', 'Запрос', 'Ошибка', 'Строк', 'мс'];
   const aoa = [header, ...rows.map(logToRow)];
 

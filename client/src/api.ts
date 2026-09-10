@@ -1,4 +1,4 @@
-import type { StoredConnection, TableMeta, ColumnMeta, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow, AuditResult, SearchResult, DataQualityResult } from './types';
+import type { StoredConnection, User, TableMeta, ColumnMeta, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow, AuditResult, SearchResult, DataQualityResult } from './types';
 
 const BASE_URL = (import.meta.env.BASE_URL ?? '/').replace(/\/+$/, ''); // '' (корень) или '/db_man'
 const BASE = BASE_URL + '/api';
@@ -7,6 +7,7 @@ const enc = encodeURIComponent;
 async function http<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(BASE + url, {
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     ...init,
   });
   if (!res.ok) {
@@ -142,4 +143,18 @@ export const api = {
     const p = page ? `?format=${format}&limit=${page.limit}&offset=${page.offset}` : `?format=${format}`;
     return `${BASE}/logs/export${p}`;
   },
+  // аутентификация
+  login: (login: string, password: string) =>
+    http<{ user: User }>('/auth/login', { method: 'POST', body: JSON.stringify({ login, password }) }),
+  register: (fio: string, login: string, password: string) =>
+    http<{ user: User }>('/auth/register', { method: 'POST', body: JSON.stringify({ fio, login, password }) }),
+  logout: () => http<{ ok: boolean }>('/auth/logout', { method: 'POST' }),
+  me: () => http<{ user: User }>('/auth/me'),
+  // управление пользователями (админ)
+  listUsers: () => http<User[]>('/users'),
+  createUser: (d: { fio: string; login: string; password: string; role?: 'admin' | 'user' }) =>
+    http<User>('/users', { method: 'POST', body: JSON.stringify(d) }),
+  updateUser: (id: string, d: { fio?: string; password?: string; role?: 'admin' | 'user' }) =>
+    http<User>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(d) }),
+  deleteUser: (id: string) => http<{ ok: boolean }>(`/users/${id}`, { method: 'DELETE' }),
 };

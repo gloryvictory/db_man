@@ -1,11 +1,35 @@
 import { Router } from 'express';
-import { listConnections, getConnection, createConnection, updateConnection, deleteConnection, savePassword, getSavedPassword, clearSavedPassword, hasSavedPassword } from '../sqlite';
+import type { Request } from 'express';
+import {
+  listConnections,
+  getConnection,
+  createConnection,
+  updateConnection,
+  deleteConnection,
+  savePassword,
+  getSavedPassword,
+  clearSavedPassword,
+  hasSavedPassword,
+  type StoredConnection,
+} from '../sqlite';
 import { storeSecrets, getSecrets, hasPassword, dropConnection, getPool } from '../pools';
 
 const r = Router();
 
-function maskConnection(c: { id: string }): Record<string, unknown> {
-  return { ...c, hasPassword: hasPassword(c.id), hasSavedPassword: hasSavedPassword(c.id) };
+function maskConnection(c: StoredConnection): Record<string, unknown> {
+  const { user_id: _uid, ...rest } = c;
+  return { ...rest, hasPassword: hasPassword(c.id), hasSavedPassword: hasSavedPassword(c.id) };
+}
+
+function isAdmin(req: Request): boolean {
+  return req.user?.role === 'admin';
+}
+
+function getOwnConn(req: Request, id: string): { conn?: StoredConnection; status?: number } {
+  const conn = getConnection(id);
+  if (!conn) return { status: 404 };
+  if (!isAdmin(req) && conn.user_id !== req.user?.id) return { status: 403 };
+  return { conn };
 }
 
 async function testConnection(connId: string, database: string) {
@@ -19,8 +43,8 @@ async function testConnection(connId: string, database: string) {
   }
 }
 
-r.get('/', (_req, res) => {
-  res.json(listConnections().map(maskConnection));
+r.get('/', (req, res) => {
+  res.json(listConnections(req.user!.id, isAdmin(req)).map(maskConnection));
 });
 
 r.post('/', async (req, res, next) => {
@@ -29,13 +53,16 @@ r.post('/', async (req, res, next) => {
     if (!name || !host || !database || !username) {
       return res.status(400).json({ error: 'Заполните name, host, database и username' });
     }
-    const conn = createConnection({
-      name: String(name),
-      host: String(host),
-      port: Number(port) || 5432,
-      database: String(database),
-      username: String(username),
-    });
+    const conn = createConnection(
+      {
+        name: String(name),
+        host: String(host),
+        port: Number(port) || 5432,
+        database: String(database),
+        username: String(username),
+      },
+      req.user!.id
+    );
     const pwd = typeof password === 'string' && password ? password : undefined;
     storeSecrets(conn.id, { host: conn.host, port: conn.port, user: conn.username, ...(pwd ? { password: pwd } : {}) });
     if (pwd && save) savePassword(conn.id, pwd);
@@ -48,6 +75,9 @@ r.post('/', async (req, res, next) => {
 
 r.put('/:id', async (req, res, next) => {
   try {
+    const { conn, status } = getOwnConn(req, req.params.id);
+    if (!conn) return res.status(status!).json({ error: status === 403 ? 'Нет доступа' : 'Подключение не найдено' });
+
     const { name, host, port, database, username, password, savePassword: save } = (req.body ?? {}) as Record<string, unknown>;
     const patch: Record<string, unknown> = {};
     if (name) patch.name = String(name);
@@ -55,22 +85,24 @@ r.put('/:id', async (req, res, next) => {
     if (port) patch.port = Number(port) || 5432;
     if (database) patch.database = String(database);
     if (username) patch.username = String(username);
-    const conn = updateConnection(req.params.id, patch);
-    if (!conn) return res.status(404).json({ error: 'Подключение не найдено' });
+    const updated = updateConnection(req.params.id, patch);
+    if (!updated) return res.status(404).json({ error: 'Подключение не найдено' });
     if (typeof password === 'string' && password) {
-      storeSecrets(conn.id, { host: conn.host, port: conn.port, user: conn.username, password });
-      if (save) savePassword(conn.id, password);
-      else clearSavedPassword(conn.id);
+      storeSecrets(updated.id, { host: updated.host, port: updated.port, user: updated.username, password });
+      if (save) savePassword(updated.id, password);
+      else clearSavedPassword(updated.id);
     } else if (save === false) {
-      clearSavedPassword(conn.id);
+      clearSavedPassword(updated.id);
     }
-    res.json(maskConnection(conn));
+    res.json(maskConnection(updated));
   } catch (e) {
     next(e);
   }
 });
 
 r.delete('/:id', (req, res) => {
+  const { conn, status } = getOwnConn(req, req.params.id);
+  if (!conn) return res.status(status!).json({ error: status === 403 ? 'Нет доступа' : 'Подключение не найдено' });
   dropConnection(req.params.id);
   deleteConnection(req.params.id);
   res.json({ ok: true });
@@ -78,8 +110,8 @@ r.delete('/:id', (req, res) => {
 
 r.post('/:id/connect', async (req, res, next) => {
   try {
-    const conn = getConnection(req.params.id);
-    if (!conn) return res.status(404).json({ error: 'Подключение не найдено' });
+    const { conn, status } = getOwnConn(req, req.params.id);
+    if (!conn) return res.status(status!).json({ error: status === 403 ? 'Нет доступа' : 'Подключение не найдено' });
     const { password } = (req.body ?? {}) as Record<string, unknown>;
     const existing = getSecrets(conn.id);
     const saved = getSavedPassword(conn.id);
@@ -102,6 +134,8 @@ r.post('/:id/connect', async (req, res, next) => {
 });
 
 r.post('/:id/disconnect', (req, res) => {
+  const { conn, status } = getOwnConn(req, req.params.id);
+  if (!conn) return res.status(status!).json({ error: status === 403 ? 'Нет доступа' : 'Подключение не найдено' });
   dropConnection(req.params.id);
   res.json({ ok: true });
 });

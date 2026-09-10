@@ -10,6 +10,14 @@ export interface StoredConnection {
   hasSavedPassword: boolean;
 }
 
+export interface User {
+  id: string;
+  fio: string;
+  login: string;
+  role: 'admin' | 'user';
+  created_at: string;
+}
+
 export interface ColumnMeta {
   name: string;
   data_type: string;

@@ -2,6 +2,7 @@ import type { Pool } from 'pg';
 import { getPool, getSecrets } from './pools';
 import { assertIdent, quote } from './ident';
 import { logQuery } from './sqlite';
+import { currentUser } from './auth';
 
 export interface ColumnMeta {
   name: string;
@@ -45,6 +46,7 @@ async function q(pool: Pool, meta: { connId: string; db: string }, sql: string, 
       duration_ms: Date.now() - start,
       rows: res.rows.length,
       error: null,
+      user_id: currentUser()?.id ?? null,
     });
     return res;
   } catch (e) {
@@ -60,6 +62,7 @@ async function q(pool: Pool, meta: { connId: string; db: string }, sql: string, 
       duration_ms: Date.now() - start,
       rows: 0,
       error: msg,
+      user_id: currentUser()?.id ?? null,
     });
     throw e;
   }

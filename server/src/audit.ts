@@ -1,4 +1,5 @@
-import { logAudit, getConnection } from './sqlite';
+import { logAudit } from './sqlite';
+import { currentUser } from './auth';
 
 interface AuditMeta {
   connId: string;
@@ -9,13 +10,22 @@ interface AuditMeta {
 
 // Выполняет операцию обслуживания и пишет её в журнал аудита (успех/ошибка).
 export async function audited(meta: AuditMeta, fn: () => Promise<void>): Promise<void> {
-  const username = getConnection(meta.connId)?.username ?? null;
+  const u = currentUser();
   try {
     await fn();
-    logAudit({ username, action: meta.action, target: meta.target, detail: meta.detail ?? null, status: 'ok', error: null });
+    logAudit({
+      user_id: u?.id ?? null,
+      username: u?.login ?? null,
+      action: meta.action,
+      target: meta.target,
+      detail: meta.detail ?? null,
+      status: 'ok',
+      error: null,
+    });
   } catch (e) {
     logAudit({
-      username,
+      user_id: u?.id ?? null,
+      username: u?.login ?? null,
       action: meta.action,
       target: meta.target,
       detail: meta.detail ?? null,

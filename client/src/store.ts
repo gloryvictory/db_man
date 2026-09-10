@@ -69,6 +69,7 @@ interface DbManState {
   setSort: (col: string) => void;
   setFilter: (f: string) => void;
   fetchRows: () => Promise<void>;
+  reset: () => void;
 }
 
 export const useStore = create<DbManState>((set, get) => ({
@@ -271,4 +272,24 @@ export const useStore = create<DbManState>((set, get) => ({
       toast.error(e instanceof Error ? e.message : 'Ошибка');
     }
   },
+
+  reset: () =>
+    set({
+      connections: [],
+      activeConnId: null,
+      connected: false,
+      connecting: false,
+      children: {},
+      expanded: {},
+      loadingNodes: {},
+      selected: null,
+      selectedDb: null,
+      selectedSchema: null,
+      columns: [],
+      rows: [],
+      total: 0,
+      page: 0,
+      sort: null,
+      filter: '',
+    }),
 }));

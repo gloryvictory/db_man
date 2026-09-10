@@ -8,7 +8,8 @@ r.get('/', (req, res) => {
   const q = req.query as Record<string, string>;
   const limit = Math.min(parseInt(q.limit, 10) || 100, 1000);
   const offset = Math.max(parseInt(q.offset, 10) || 0, 0);
-  res.json({ rows: listAudit(limit, offset), total: countAudit(), limit, offset });
+  const isAdmin = req.user!.role === 'admin';
+  res.json({ rows: listAudit(limit, offset, req.user!.id, isAdmin), total: countAudit(req.user!.id, isAdmin), limit, offset });
 });
 
 function cell(v: unknown): unknown {
@@ -23,7 +24,7 @@ function auditToRow(a: Record<string, unknown>) {
 r.get('/export', (req, res) => {
   const q = req.query as Record<string, string>;
   const format = q.format === 'csv' ? 'csv' : 'xlsx';
-  const rows = listAudit() as Record<string, unknown>[];
+  const rows = listAudit(undefined, undefined, req.user!.id, req.user!.role === 'admin') as Record<string, unknown>[];
   const header = ['Время', 'Пользователь', 'Действие', 'Объект', 'Деталь', 'Результат', 'Ошибка'];
   const aoa = [header, ...rows.map(auditToRow)];
 
@@ -49,8 +50,8 @@ r.get('/export', (req, res) => {
   res.send(buf);
 });
 
-r.delete('/', (_req, res) => {
-  clearAudit();
+r.delete('/', (req, res) => {
+  clearAudit(req.user!.id, req.user!.role === 'admin');
   res.json({ ok: true });
 });
 

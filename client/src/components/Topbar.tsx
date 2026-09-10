@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Plus, Power, List, BarChart3, Database, Moon, Sun } from 'lucide-react';
+import { Plus, Power, List, BarChart3, Database, Moon, Sun, User, ChevronDown, LogOut, ShieldCheck } from 'lucide-react';
 import { useStore } from '../store';
 import { getTheme, applyTheme, type Theme } from '../lib/theme';
 import { Button, Select } from './ui';
 import ConnectionModal from './ConnectionModal';
 import LogsModal from './LogsModal';
 import PasswordModal from './PasswordModal';
+import AdminPanel from './AdminPanel';
+import { useAuth } from '../store/authStore';
 
 export default function Topbar() {
   const store = useStore();
@@ -16,6 +18,9 @@ export default function Topbar() {
   const [logsOpen, setLogsOpen] = useState(false);
   const [pwdOpen, setPwdOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>(getTheme());
+  const auth = useAuth();
+  const [userOpen, setUserOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
 
   function toggleTheme() {
     setTheme((t) => {
@@ -123,9 +128,58 @@ export default function Topbar() {
         {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
       </Button>
 
+      <div className="relative">
+        <Button variant="subtle" onClick={() => setUserOpen((o) => !o)} title={auth.user?.fio}>
+          <User size={14} />
+          <span className="max-w-[140px] truncate">{auth.user?.login}</span>
+          <ChevronDown size={12} />
+        </Button>
+        {userOpen && (
+          <>
+            <div className="fixed inset-0 z-20" onClick={() => setUserOpen(false)} />
+            <div className="absolute right-0 top-full z-30 mt-1 w-[230px] overflow-hidden rounded-md border border-[var(--border)] bg-[var(--bg-raised)] shadow-xl">
+              <div className="flex items-center justify-between border-b border-[var(--border)] px-3 py-2.5">
+                <div className="min-w-0">
+                  <div className="truncate text-[13px] font-medium">{auth.user?.fio}</div>
+                  <div className="truncate font-mono text-[11px] text-[var(--muted)]">{auth.user?.login}</div>
+                </div>
+                {auth.user?.role === 'admin' && (
+                  <span className="ml-2 shrink-0 rounded bg-[var(--accent-bg-hover)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent)]">
+                    админ
+                  </span>
+                )}
+              </div>
+              {auth.user?.role === 'admin' && (
+                <div
+                  className="flex cursor-pointer items-center gap-2 px-3 py-2 text-[13px] hover:bg-[var(--bg-panel)]"
+                  onClick={() => {
+                    setUserOpen(false);
+                    setAdminOpen(true);
+                  }}
+                >
+                  <ShieldCheck size={14} />
+                  Админка
+                </div>
+              )}
+              <div
+                className="flex cursor-pointer items-center gap-2 px-3 py-2 text-[13px] hover:bg-[var(--bg-panel)]"
+                onClick={() => {
+                  setUserOpen(false);
+                  auth.logout();
+                }}
+              >
+                <LogOut size={14} />
+                Выйти
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
       <ConnectionModal open={connOpen} onClose={() => setConnOpen(false)} />
       <LogsModal open={logsOpen} onClose={() => setLogsOpen(false)} />
       <PasswordModal open={pwdOpen} onClose={() => setPwdOpen(false)} />
+      <AdminPanel open={adminOpen} onClose={() => setAdminOpen(false)} />
     </header>
   );
 }
