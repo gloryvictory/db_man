@@ -83,7 +83,7 @@ export default function DataQualityView({
         value={sub}
         onChange={(v) => setSub(v as 'spatial' | 'noIndex')}
         items={[
-          { value: 'spatial', label: `Пространственные данные (${spatial.length})` },
+          { value: 'spatial', label: `Таблицы без Пространственного индекса (${spatial.length})` },
           { value: 'noIndex', label: `Таблицы без индексов (${noIndex.length})` },
         ]}
       />
