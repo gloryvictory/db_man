@@ -1,4 +1,5 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import {
   flexRender,
   getCoreRowModel,
@@ -11,6 +12,29 @@ import { Loader, Button, Badge, Select } from './ui';
 import type { ColumnMeta } from '../types';
 
 const columnHelper = createColumnHelper<Record<string, unknown>>();
+
+function cellText(v: unknown): string {
+  if (v === null || v === undefined) return 'NULL';
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
+
+function cellSql(v: unknown): string {
+  if (v === null || v === undefined) return 'NULL';
+  if (typeof v === 'number' || typeof v === 'bigint' || typeof v === 'boolean') return String(v);
+  const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+  return "'" + s.replace(/'/g, "''") + "'";
+}
+
+function cellTsv(v: unknown): string {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
+
+function qid(n: string): string {
+  return '"' + n.replace(/"/g, '""') + '"';
+}
 
 function HeaderCell({ col }: { col: ColumnMeta }) {
   const store = useStore();
@@ -45,6 +69,7 @@ function CellValue({ v }: { v: unknown }) {
 
 export default function DataView() {
   const store = useStore();
+  const [menu, setMenu] = useState<{ x: number; y: number; value: unknown; rowValues: unknown[] } | null>(null);
 
   const data = useMemo(() => {
     return store.rows.map((r) => {
@@ -82,6 +107,48 @@ export default function DataView() {
     if (store.selected) store.fetchRows();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.selected, store.page, store.pageSize, store.sort, store.filter]);
+
+  useEffect(() => {
+    function close() {
+      setMenu(null);
+    }
+    document.addEventListener('mousedown', close);
+    document.addEventListener('wheel', close, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('wheel', close);
+    };
+  }, []);
+
+  async function doCopy(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('Скопировано');
+    } catch {
+      toast.error('Не удалось скопировать');
+    }
+  }
+
+  function copyValue() {
+    if (!menu) return;
+    doCopy(cellText(menu.value));
+    setMenu(null);
+  }
+
+  function copyRowTsv() {
+    if (!menu) return;
+    doCopy(menu.rowValues.map(cellTsv).join('\t'));
+    setMenu(null);
+  }
+
+  function copyRowInsert() {
+    if (!menu || !store.selected) return;
+    const sel = store.selected;
+    const cols = store.columns.map((c) => qid(c.name)).join(', ');
+    const vals = menu.rowValues.map(cellSql).join(', ');
+    doCopy(`INSERT INTO ${qid(sel.schema)}.${qid(sel.table)} (${cols}) VALUES (${vals});`);
+    setMenu(null);
+  }
 
   const pageCount = Math.max(1, Math.ceil(store.total / store.pageSize));
 
@@ -135,6 +202,15 @@ export default function DataView() {
                     <td
                       key={cell.id}
                       className="whitespace-nowrap border-b border-[var(--border)] px-3 py-1"
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setMenu({
+                          x: e.clientX,
+                          y: e.clientY,
+                          value: cell.getValue(),
+                          rowValues: store.columns.map((c) => row.original[c.name]),
+                        });
+                      }}
                     >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
@@ -175,6 +251,33 @@ export default function DataView() {
           ›
         </Button>
       </div>
+
+      {menu && (
+        <div
+          className="fixed z-[100] min-w-[210px] rounded-lg border border-[var(--border-strong)] bg-[var(--surface-elevated)] p-1 shadow-lg"
+          style={{ left: menu.x, top: menu.y }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <button
+            className="block w-full rounded-md px-3 py-1.5 text-left text-[12.5px] text-[var(--text)] hover:bg-[var(--surface-hover)]"
+            onClick={copyValue}
+          >
+            Копировать значение
+          </button>
+          <button
+            className="block w-full rounded-md px-3 py-1.5 text-left text-[12.5px] text-[var(--text)] hover:bg-[var(--surface-hover)]"
+            onClick={copyRowTsv}
+          >
+            Копировать строку (TSV)
+          </button>
+          <button
+            className="block w-full rounded-md px-3 py-1.5 text-left text-[12.5px] text-[var(--text)] hover:bg-[var(--surface-hover)]"
+            onClick={copyRowInsert}
+          >
+            Копировать строку (INSERT)
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import {
   vacuumSchema,
   analyzeSchema,
   reindexSchema,
+  getDatabaseDdl,
 } from '../db';
 import { audited } from '../audit';
 
@@ -30,6 +31,14 @@ r.get('/:connId/databases/:db/schemas/:schema/analysis', async (req, res, next) 
 r.get('/:connId/databases/:db/schemas/:schema/service', async (req, res, next) => {
   try {
     res.json(await getSchemaStats(req.params.connId, req.params.db, req.params.schema));
+  } catch (e) {
+    next(e);
+  }
+});
+
+r.get('/:connId/databases/:db/schemas/:schema/ddl', async (req, res, next) => {
+  try {
+    res.json({ ddl: await getDatabaseDdl(req.params.connId, req.params.db, req.params.schema) });
   } catch (e) {
     next(e);
   }

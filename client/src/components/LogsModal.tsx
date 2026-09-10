@@ -196,6 +196,10 @@ export default function LogsModal({ open, onClose }: { open: boolean; onClose: (
       ) : (
         <>
           <div className="mb-3 flex flex-wrap items-center gap-2">
+            <Button onClick={() => download(api.auditExportUrl('xlsx'))}>⭳ Excel</Button>
+            <Button variant="subtle" onClick={() => download(api.auditExportUrl('csv'))}>
+              CSV
+            </Button>
             <Button variant="subtle" onClick={clearActions} style={{ color: 'var(--red)' }}>
               <Trash2 size={14} />
               Очистить

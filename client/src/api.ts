@@ -119,6 +119,8 @@ export const api = {
     http<{ ddl: string }>(`/connections/${id}/databases/${enc(db)}/ddl`),
   schemaService: (id: string, db: string, schema: string) =>
     http<SchemaStats>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/service`),
+  schemaDdl: (id: string, db: string, schema: string) =>
+    http<{ ddl: string }>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/ddl`),
   schemaVacuum: (id: string, db: string, schema: string) =>
     http<{ ok: boolean }>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/service/vacuum`, { method: 'POST' }),
   schemaAnalyze: (id: string, db: string, schema: string) =>
@@ -129,6 +131,7 @@ export const api = {
   clearLogs: () => http<{ ok: boolean }>('/logs', { method: 'DELETE' }),
   audit: (limit: number, offset: number) => http<AuditResult>(`/audit?limit=${limit}&offset=${offset}`),
   clearAudit: () => http<{ ok: boolean }>('/audit', { method: 'DELETE' }),
+  auditExportUrl: (format: 'xlsx' | 'csv') => `${BASE}/audit/export?format=${format}`,
   exportUrl: (id: string, db: string, schema: string, table: string, format: 'xlsx' | 'csv' | 'sql') =>
     `${BASE}/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables/${enc(table)}/export?format=${format}`,
   logsExportUrl: (format: 'xlsx' | 'csv', page?: { limit: number; offset: number }) => {

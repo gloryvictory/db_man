@@ -107,6 +107,7 @@ export const useStore = create<DbManState>((set, get) => ({
     try {
       await api.connect(id, password);
       set({ connected: true, connecting: false });
+      localStorage.setItem('dbman-last-conn', id);
       const conn = get().connections.find((c) => c.id === id);
       await get().loadChildren({
         id,
@@ -134,6 +135,7 @@ export const useStore = create<DbManState>((set, get) => ({
       const res = await api.createConnection(data);
       await get().loadConnections();
       set({ activeConnId: res.id, connected: !!res.connected });
+      if (res.connected) localStorage.setItem('dbman-last-conn', res.id);
       if (res.connected) {
         await get().loadChildren({
           id: res.id,
@@ -151,6 +153,7 @@ export const useStore = create<DbManState>((set, get) => ({
   removeConnection: async (id) => {
     await api.deleteConnection(id);
     if (get().activeConnId === id) set({ activeConnId: null, connected: false, selected: null });
+    if (localStorage.getItem('dbman-last-conn') === id) localStorage.removeItem('dbman-last-conn');
     await get().loadConnections();
   },
 

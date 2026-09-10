@@ -1250,16 +1250,29 @@ function sqlStr(s: string): string {
   return `'${s.replace(/'/g, "''")}'`;
 }
 
-export async function getDatabaseDdl(connId: string, db: string): Promise<string> {
+export async function getDatabaseDdl(connId: string, db: string, schema?: string): Promise<string> {
+  if (schema) assertIdent(schema);
   const pool = getPool(connId, db);
   const meta = { connId, db };
-  const sys = `n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname NOT LIKE 'pg\\_%' ESCAPE '\\'`;
+  const sys = schema
+    ? `n.nspname = ${sqlStr(schema)}`
+    : `n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname NOT LIKE 'pg\\_%' ESCAPE '\\'`;
   const out: string[] = [];
 
-  out.push(`-- Сценарий создания базы данных «${db}»`);
-  out.push(`-- Порядок: БД → расширения → схемы → последовательности → таблицы → комментарии → индексы → внешние ключи → представления`);
-  out.push(``);
+  if (schema) {
+    out.push(`-- Сценарий создания схемы «${schema}»`);
+    out.push(`-- Порядок: схема → последовательности → таблицы → комментарии → индексы → внешние ключи → представления`);
+    out.push(``);
+    out.push(`-- ===== Схема =====`);
+    out.push(`CREATE SCHEMA IF NOT EXISTS ${quote(schema)};`);
+    out.push(``);
+  } else {
+    out.push(`-- Сценарий создания базы данных «${db}»`);
+    out.push(`-- Порядок: БД → расширения → схемы → последовательности → таблицы → комментарии → индексы → внешние ключи → представления`);
+    out.push(``);
+  }
 
+  if (!schema) {
   // 1. База данных
   const dbRes = await q(
     pool,
@@ -1305,6 +1318,8 @@ export async function getDatabaseDdl(connId: string, db: string): Promise<string
     out.push(`-- ===== Схемы =====`);
     for (const r of schRes.rows as Record<string, unknown>[]) out.push(`CREATE SCHEMA IF NOT EXISTS ${quote(String(r.nspname))};`);
     out.push(``);
+  }
+
   }
 
   // 4. Последовательности (не принадлежащие serial-колонкам)

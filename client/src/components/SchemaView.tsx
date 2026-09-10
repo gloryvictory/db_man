@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Eraser, Sparkles, RotateCcw } from 'lucide-react';
+import { Eraser, Sparkles, RotateCcw, Copy, Download } from 'lucide-react';
 import { useStore } from '../store';
 import { api } from '../api';
 import { Button, Loader, Tabs, Info } from './ui';
 import AnalysisTable from './AnalysisTable';
+import { SqlCode } from '../lib/sqlHighlight';
+import { downloadText } from '../lib/export';
 import { formatDateRel } from '../lib/format';
 import type { SchemaInfo, SchemaStats, SchemaTableRow } from '../types';
 
@@ -13,9 +15,11 @@ export default function SchemaView() {
   const [info, setInfo] = useState<SchemaInfo | null>(null);
   const [stats, setStats] = useState<SchemaStats | null>(null);
   const [rows, setRows] = useState<SchemaTableRow[]>([]);
-  const [view, setView] = useState<'info' | 'service' | 'analysis'>('info');
+  const [view, setView] = useState<'info' | 'service' | 'analysis' | 'ddl'>('info');
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [ddl, setDdl] = useState<string | null>(null);
+  const [ddlLoading, setDdlLoading] = useState(false);
 
   const id = store.activeConnId;
   const schema = store.selectedSchema;
@@ -56,6 +60,27 @@ export default function SchemaView() {
     }
   }
 
+  const loadDdl = useCallback(async () => {
+    if (!id || !schema || ddl) return;
+    setDdlLoading(true);
+    try {
+      setDdl((await api.schemaDdl(id, schema.db, schema.schema)).ddl);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Ошибка');
+    } finally {
+      setDdlLoading(false);
+    }
+  }, [id, schema, ddl]);
+
+  useEffect(() => {
+    if (view === 'ddl') loadDdl();
+  }, [view, loadDdl]);
+
+  function copyDdl() {
+    if (!ddl) return;
+    navigator.clipboard.writeText(ddl).then(() => toast.success('Скопировано'));
+  }
+
   if (!id || !schema) return null;
 
   return (
@@ -68,11 +93,12 @@ export default function SchemaView() {
         <div className="mt-3">
           <Tabs
             value={view}
-            onChange={(v) => setView(v as 'info' | 'service' | 'analysis')}
+            onChange={(v) => setView(v as 'info' | 'service' | 'analysis' | 'ddl')}
             items={[
               { value: 'info', label: 'Информация' },
               { value: 'service', label: 'Сервис' },
               { value: 'analysis', label: 'Анализ' },
+              { value: 'ddl', label: 'DDL' },
             ]}
           />
         </div>
@@ -159,6 +185,31 @@ export default function SchemaView() {
                   <Info label="Последний AUTOANALYZE" value={formatDateRel(stats?.last_autoanalyze ?? null)} />
                 </div>
               </section>
+            </div>
+          ) : view === 'ddl' ? (
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <Button size="xs" variant="subtle" onClick={copyDdl} disabled={!ddl}>
+                  <Copy size={12} />
+                  Скопировать
+                </Button>
+                <Button size="xs" variant="subtle" onClick={() => ddl && downloadText(`${schema.schema}.sql`, ddl)} disabled={!ddl}>
+                  <Download size={12} />
+                  Экспорт
+                </Button>
+                <span className="font-mono text-[11px] text-[var(--faint)]">
+                  {ddl ? `${ddl.length.toLocaleString('ru-RU')} симв.` : ''}
+                </span>
+              </div>
+              {ddlLoading ? (
+                <div className="grid h-40 place-items-center">
+                  <Loader />
+                </div>
+              ) : ddl ? (
+                <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-4">
+                  <SqlCode sql={ddl} />
+                </div>
+              ) : null}
             </div>
           ) : (
             <AnalysisTable rows={rows} exportName={`${schema.db}_${schema.schema}_tables`} />

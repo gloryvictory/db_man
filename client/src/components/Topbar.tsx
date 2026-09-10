@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Plus, Power, List, BarChart3, Database, Moon, Sun } from 'lucide-react';
 import { useStore } from '../store';
@@ -25,6 +25,24 @@ export default function Topbar() {
       return next;
     });
   }
+
+  // автоподключение к последней конфигурации при открытии приложения
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      await useStore.getState().loadConnections();
+      const id = localStorage.getItem('dbman-last-conn');
+      if (cancelled || !id) return;
+      const exists = useStore.getState().connections.some((c) => c.id === id);
+      if (!exists) return;
+      useStore.getState().setActiveConn(id);
+      const ok = await useStore.getState().connect(id);
+      if (!ok && !cancelled) setPwdOpen(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const options = store.connections.map((c) => ({
     value: c.id,
