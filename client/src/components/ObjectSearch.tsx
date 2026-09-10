@@ -65,7 +65,7 @@ export default function ObjectSearch() {
   return (
     <div ref={ref} className="relative">
       <div
-        className={`flex h-[30px] w-[230px] items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 ${
+        className={`flex h-[30px] w-full items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 ${
           enabled ? '' : 'opacity-60'
         }`}
       >

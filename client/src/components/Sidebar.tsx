@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { ChevronRight, Server, Database, Layers, Table } from 'lucide-react';
 import { useStore, type TreeNode } from '../store';
 import { Loader } from './ui';
+import ObjectSearch from './ObjectSearch';
 
 function iconFor(kind: TreeNode['kind']) {
   switch (kind) {
@@ -96,6 +97,9 @@ export default function Sidebar({ width }: { width: number }) {
 
   return (
     <aside className="flex shrink-0 flex-col bg-[var(--bg-panel)]" style={{ width }}>
+      <div className="border-b border-[var(--border)] p-2">
+        <ObjectSearch />
+      </div>
       <div className="min-h-0 flex-1 overflow-auto p-2">
         {!store.activeConnId || !conn ? (
           <div className="px-2 py-1 text-[12px] text-[var(--faint)]">
