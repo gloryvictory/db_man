@@ -5,6 +5,7 @@ import { useStore } from '../store';
 import { api } from '../api';
 import { Button, Loader, Tabs, Info } from './ui';
 import AnalysisTable from './AnalysisTable';
+import DataQualityView from './DataQualityView';
 import { SqlCode } from '../lib/sqlHighlight';
 import { downloadText } from '../lib/export';
 import { formatDateRel } from '../lib/format';
@@ -15,7 +16,7 @@ export default function SchemaView() {
   const [info, setInfo] = useState<SchemaInfo | null>(null);
   const [stats, setStats] = useState<SchemaStats | null>(null);
   const [rows, setRows] = useState<SchemaTableRow[]>([]);
-  const [view, setView] = useState<'info' | 'service' | 'analysis' | 'ddl'>('info');
+  const [view, setView] = useState<'info' | 'service' | 'analysis' | 'ddl' | 'quality'>('info');
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [ddl, setDdl] = useState<string | null>(null);
@@ -93,12 +94,13 @@ export default function SchemaView() {
         <div className="mt-3">
           <Tabs
             value={view}
-            onChange={(v) => setView(v as 'info' | 'service' | 'analysis' | 'ddl')}
+            onChange={(v) => setView(v as 'info' | 'service' | 'analysis' | 'ddl' | 'quality')}
             items={[
               { value: 'info', label: 'Информация' },
               { value: 'service', label: 'Сервис' },
               { value: 'analysis', label: 'Анализ' },
               { value: 'ddl', label: 'DDL' },
+              { value: 'quality', label: 'Качество данных' },
             ]}
           />
         </div>
@@ -211,6 +213,8 @@ export default function SchemaView() {
                 </div>
               ) : null}
             </div>
+          ) : view === 'quality' ? (
+            <DataQualityView id={id} db={schema.db} schema={schema.schema} showSchema={false} />
           ) : (
             <AnalysisTable rows={rows} exportName={`${schema.db}_${schema.schema}_tables`} />
           )}

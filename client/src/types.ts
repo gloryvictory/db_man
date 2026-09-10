@@ -281,3 +281,12 @@ export interface SearchResult {
   columns: { schema: string; table: string; name: string; data_type: string }[];
   indexes: { schema: string; table: string; name: string }[];
 }
+
+export interface SpatialTableRow extends DatabaseTableRow {
+  geom_columns: string[];
+}
+
+export interface DataQualityResult {
+  spatial: SpatialTableRow[];
+  noIndex: DatabaseTableRow[];
+}

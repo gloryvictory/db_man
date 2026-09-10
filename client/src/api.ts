@@ -1,4 +1,4 @@
-import type { StoredConnection, TableMeta, ColumnMeta, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow, AuditResult, SearchResult } from './types';
+import type { StoredConnection, TableMeta, ColumnMeta, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow, AuditResult, SearchResult, DataQualityResult } from './types';
 
 const BASE_URL = (import.meta.env.BASE_URL ?? '/').replace(/\/+$/, ''); // '' (корень) или '/db_man'
 const BASE = BASE_URL + '/api';
@@ -117,10 +117,14 @@ export const api = {
     http<ServerConfigRow[]>(`/connections/${id}/databases/${enc(db)}/config`),
   databaseDdl: (id: string, db: string) =>
     http<{ ddl: string }>(`/connections/${id}/databases/${enc(db)}/ddl`),
+  databaseDataQuality: (id: string, db: string) =>
+    http<DataQualityResult>(`/connections/${id}/databases/${enc(db)}/data-quality`),
   schemaService: (id: string, db: string, schema: string) =>
     http<SchemaStats>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/service`),
   schemaDdl: (id: string, db: string, schema: string) =>
     http<{ ddl: string }>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/ddl`),
+  schemaDataQuality: (id: string, db: string, schema: string) =>
+    http<DataQualityResult>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/data-quality`),
   schemaVacuum: (id: string, db: string, schema: string) =>
     http<{ ok: boolean }>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/service/vacuum`, { method: 'POST' }),
   schemaAnalyze: (id: string, db: string, schema: string) =>

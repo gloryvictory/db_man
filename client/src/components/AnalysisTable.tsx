@@ -60,14 +60,25 @@ function bloatColor(ratio: number): string {
   return 'var(--faint)';
 }
 
+export interface ExtraColumn {
+  key: string;
+  label: string;
+  right?: boolean;
+  value: (r: AnalysisRow) => string | number | null;
+}
+
 export default function AnalysisTable({
   rows,
   showSchema = false,
   exportName,
+  onRowContextMenu,
+  extraColumns = [],
 }: {
   rows: AnalysisRow[];
   showSchema?: boolean;
   exportName: string;
+  onRowContextMenu?: (row: AnalysisRow, e: React.MouseEvent) => void;
+  extraColumns?: ExtraColumn[];
 }) {
   const [sort, setSort] = useState<SortState>(null);
 
@@ -133,6 +144,7 @@ export default function AnalysisTable({
       'VACUUM',
       'ANALYZE',
       'Нужен ANALYZE',
+      ...extraColumns.map((ec) => ec.label),
     ];
     const data = sorted.map((r) => [
       ...(showSchema ? [r.schema ?? ''] : []),
@@ -151,11 +163,12 @@ export default function AnalysisTable({
       r.last_vacuum ? new Date(r.last_vacuum).toLocaleString('ru-RU') : '',
       r.last_analyze ? new Date(r.last_analyze).toLocaleString('ru-RU') : '',
       r.needs_analyze ? 'да' : 'нет',
+      ...extraColumns.map((ec) => ec.value(r) ?? ''),
     ]);
     exportToExcel(exportName, header, data);
   }
 
-  const colCount = 13 + (showSchema ? 1 : 0);
+  const colCount = 13 + (showSchema ? 1 : 0) + extraColumns.length;
 
   return (
     <section>
@@ -187,11 +200,25 @@ export default function AnalysisTable({
               <Th col="dead_ratio" label="Bloat %" right sort={sort} onSort={toggleSort} />
               <Th col="last_vacuum" label="VACUUM" sort={sort} onSort={toggleSort} />
               <Th col="last_analyze" label="ANALYZE" sort={sort} onSort={toggleSort} />
+              {extraColumns.map((ec) => (
+                <th
+                  key={ec.key}
+                  className={`whitespace-nowrap border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)] ${
+                    ec.right ? 'text-right' : 'text-left'
+                  }`}
+                >
+                  {ec.label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {sorted.map((r) => (
-              <tr key={`${r.schema ?? ''}.${r.name}`} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)]">
+              <tr
+                key={`${r.schema ?? ''}.${r.name}`}
+                className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)]"
+                onContextMenu={(e) => onRowContextMenu?.(r, e)}
+              >
                 {showSchema && <td className="px-3 py-1.5 text-[var(--amber)]">{r.schema}</td>}
                 <td className="px-3 py-1.5 text-[var(--text)]">{r.name}</td>
                 <td className="px-3 py-1.5 text-[var(--muted)]">
@@ -232,6 +259,11 @@ export default function AnalysisTable({
                     </span>
                   )}
                 </td>
+                {extraColumns.map((ec) => (
+                  <td key={ec.key} className={`px-3 py-1.5 ${ec.right ? 'text-right' : ''} text-[var(--text)]`}>
+                    {ec.value(r) ?? <span className="text-[var(--null)]">—</span>}
+                  </td>
+                ))}
               </tr>
             ))}
             {sorted.length === 0 && (
@@ -262,6 +294,9 @@ export default function AnalysisTable({
               <td className="px-3 py-1.5 text-right">{totals.dead_tup.toLocaleString('ru-RU')}</td>
               <td />
               <td />
+              {extraColumns.map((ec) => (
+                <td key={ec.key} />
+              ))}
             </tr>
           </tfoot>
         </table>

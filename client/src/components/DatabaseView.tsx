@@ -5,6 +5,7 @@ import { useStore } from '../store';
 import { api } from '../api';
 import { Button, Loader, Tabs, Info, Input } from './ui';
 import AnalysisTable from './AnalysisTable';
+import DataQualityView from './DataQualityView';
 import { SqlCode } from '../lib/sqlHighlight';
 import { formatDateRel, formatBytes } from '../lib/format';
 import { downloadText } from '../lib/export';
@@ -20,7 +21,7 @@ export default function DatabaseView() {
   const [configSearch, setConfigSearch] = useState('');
   const [ddl, setDdl] = useState<string | null>(null);
   const [ddlLoading, setDdlLoading] = useState(false);
-  const [view, setView] = useState<'info' | 'service' | 'analysis' | 'config' | 'ddl'>('info');
+  const [view, setView] = useState<'info' | 'service' | 'analysis' | 'config' | 'ddl' | 'quality'>('info');
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -124,13 +125,14 @@ export default function DatabaseView() {
         <div className="mt-3">
           <Tabs
             value={view}
-            onChange={(v) => setView(v as 'info' | 'service' | 'analysis' | 'config' | 'ddl')}
+            onChange={(v) => setView(v as 'info' | 'service' | 'analysis' | 'config' | 'ddl' | 'quality')}
             items={[
               { value: 'info', label: 'Информация' },
               { value: 'service', label: 'Сервис' },
               { value: 'analysis', label: 'Анализ' },
               { value: 'config', label: 'Конфигурация' },
               { value: 'ddl', label: 'DDL' },
+              { value: 'quality', label: 'Качество данных' },
             ]}
           />
         </div>
@@ -290,6 +292,8 @@ export default function DatabaseView() {
                 </div>
               ) : null}
             </div>
+          ) : view === 'quality' ? (
+            <DataQualityView id={id} db={db} showSchema />
           ) : (
             <AnalysisTable rows={analysisRows} showSchema exportName={`${db}_tables`} />
           )}

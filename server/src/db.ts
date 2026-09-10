@@ -1003,6 +1003,79 @@ export async function getDatabaseAnalysis(connId: string, db: string): Promise<D
   });
 }
 
+export interface SpatialTableRow extends DatabaseTableRow {
+  geom_columns: string[];
+}
+
+export interface DataQualityResult {
+  spatial: SpatialTableRow[];
+  noIndex: DatabaseTableRow[];
+}
+
+export async function getDataQuality(connId: string, db: string, schema?: string): Promise<DataQualityResult> {
+  if (schema) assertIdent(schema);
+  const pool = getPool(connId, db);
+  const meta = { connId, db };
+  const sys = schema
+    ? `n.nspname = ${sqlStr(schema)}`
+    : `n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname NOT LIKE 'pg\\_%' ESCAPE '\\'`;
+
+  // 1. Таблицы с колонкой geometry/geography без пространственного (GiST/SP-GiST) индекса
+  const spRes = await q(
+    pool,
+    meta,
+    `SELECT n.nspname AS schema, c.relname AS name, a.attname AS geom_col
+     FROM pg_class c
+     JOIN pg_namespace n ON n.oid = c.relnamespace
+     JOIN pg_attribute a ON a.attrelid = c.oid
+     JOIN pg_type t ON t.oid = a.atttypid
+     WHERE a.attnum > 0 AND NOT a.attisdropped
+       AND c.relkind IN ('r','p','m')
+       AND t.typname IN ('geometry','geography')
+       AND ${sys}
+       AND NOT EXISTS (
+         SELECT 1 FROM pg_index i
+         JOIN pg_class idx ON idx.oid = i.indexrelid
+         JOIN pg_am am ON am.oid = idx.relam
+         WHERE i.indrelid = c.oid AND am.amname IN ('gist','spgist') AND a.attnum = ANY(i.indkey)
+       )
+     ORDER BY n.nspname, c.relname, a.attname`
+  );
+  const geomByTable = new Map<string, string[]>();
+  for (const r of spRes.rows as Record<string, unknown>[]) {
+    const key = `${r.schema}.${r.name}`;
+    if (!geomByTable.has(key)) geomByTable.set(key, []);
+    geomByTable.get(key)!.push(String(r.geom_col));
+  }
+
+  // 2. Таблицы вообще без индексов
+  const niRes = await q(
+    pool,
+    meta,
+    `SELECT n.nspname AS schema, c.relname AS name
+     FROM pg_class c
+     JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE c.relkind IN ('r','p','m')
+       AND ${sys}
+       AND NOT EXISTS (SELECT 1 FROM pg_index i WHERE i.indrelid = c.oid)
+     ORDER BY n.nspname, c.relname`
+  );
+  const noIndexTables = new Set((niRes.rows as Record<string, unknown>[]).map((r) => `${r.schema}.${r.name}`));
+
+  // 3. Полные строки анализа (переиспользуем) + джойн
+  const analysis: DatabaseTableRow[] = schema
+    ? (await getSchemaAnalysis(connId, db, schema)).map((r) => ({ ...r, schema }))
+    : await getDatabaseAnalysis(connId, db);
+
+  const spatial = analysis
+    .filter((r) => geomByTable.has(`${r.schema}.${r.name}`))
+    .map((r) => ({ ...r, geom_columns: geomByTable.get(`${r.schema}.${r.name}`)! }));
+
+  const noIndex = analysis.filter((r) => noIndexTables.has(`${r.schema}.${r.name}`));
+
+  return { spatial, noIndex };
+}
+
 export interface SchemaStats {
   table_count: number;
   live_tup: number;

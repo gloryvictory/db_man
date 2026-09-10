@@ -7,6 +7,7 @@ import {
   analyzeSchema,
   reindexSchema,
   getDatabaseDdl,
+  getDataQuality,
 } from '../db';
 import { audited } from '../audit';
 
@@ -39,6 +40,14 @@ r.get('/:connId/databases/:db/schemas/:schema/service', async (req, res, next) =
 r.get('/:connId/databases/:db/schemas/:schema/ddl', async (req, res, next) => {
   try {
     res.json({ ddl: await getDatabaseDdl(req.params.connId, req.params.db, req.params.schema) });
+  } catch (e) {
+    next(e);
+  }
+});
+
+r.get('/:connId/databases/:db/schemas/:schema/data-quality', async (req, res, next) => {
+  try {
+    res.json(await getDataQuality(req.params.connId, req.params.db, req.params.schema));
   } catch (e) {
     next(e);
   }
