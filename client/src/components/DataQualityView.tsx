@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { MapPin } from 'lucide-react';
 import { api } from '../api';
-import { Tabs, Loader } from './ui';
+import { Tabs, Loader, Button } from './ui';
 import AnalysisTable, { type AnalysisRow } from './AnalysisTable';
 import type { DataQualityResult, SpatialTableRow } from '../types';
 
@@ -21,6 +21,7 @@ export default function DataQualityView({
   const [loading, setLoading] = useState(false);
   const [sub, setSub] = useState<'spatial' | 'noIndex'>('spatial');
   const [menu, setMenu] = useState<{ x: number; y: number; schema: string; table: string; geomCols: string[] } | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -65,6 +66,33 @@ export default function DataQualityView({
     }
   }
 
+  async function createAllSpatial() {
+    const rows = data?.spatial ?? [];
+    if (busy || !rows.length) return;
+    setBusy(true);
+    let created = 0;
+    let failed = 0;
+    try {
+      for (const row of rows) {
+        for (const col of row.geom_columns ?? []) {
+          try {
+            await api.createSpatialIndex(id, db, row.schema, row.name, col);
+            created++;
+          } catch (e) {
+            failed++;
+            toast.error(`${row.schema}.${row.name}: ${e instanceof Error ? e.message : 'Ошибка'}`);
+          }
+        }
+      }
+      toast.success(
+        failed === 0 ? `Создано пространственных индексов: ${created}` : `Создано индексов: ${created}, ошибок: ${failed}`
+      );
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (loading && !data) {
     return (
       <div className="grid min-h-0 flex-1 place-items-center">
@@ -89,24 +117,37 @@ export default function DataQualityView({
       />
 
       {sub === 'spatial' ? (
-        <AnalysisTable
-          rows={spatial}
-          showSchema={showSchema}
-          exportName={`${prefix}_spatial`}
-          onRowContextMenu={(row: AnalysisRow, e) => {
-            e.preventDefault();
-            const geomCols = (row as AnalysisRow & { geom_columns?: string[] }).geom_columns ?? [];
-            if (!geomCols.length) return;
-            setMenu({ x: e.clientX, y: e.clientY, schema: row.schema ?? schema ?? '', table: row.name, geomCols });
-          }}
-          extraColumns={[
-            {
-              key: 'geom',
-              label: 'Геометрия',
-              value: (r) => (r as SpatialTableRow).geom_columns?.join(', ') ?? null,
-            },
-          ]}
-        />
+        <div className="flex flex-col gap-3">
+          {spatial.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Button variant="primary" onClick={createAllSpatial} disabled={busy}>
+                <MapPin size={14} />
+                {busy ? 'Создание индексов…' : 'Создать пространственный индекс для всех таблиц'}
+              </Button>
+              <span className="text-[11px] text-[var(--muted)]">
+                {busy ? 'Обработка…' : `будет создан индекс для ${spatial.length} табл.`}
+              </span>
+            </div>
+          )}
+          <AnalysisTable
+            rows={spatial}
+            showSchema={showSchema}
+            exportName={`${prefix}_spatial`}
+            onRowContextMenu={(row: AnalysisRow, e) => {
+              e.preventDefault();
+              const geomCols = (row as AnalysisRow & { geom_columns?: string[] }).geom_columns ?? [];
+              if (!geomCols.length) return;
+              setMenu({ x: e.clientX, y: e.clientY, schema: row.schema ?? schema ?? '', table: row.name, geomCols });
+            }}
+            extraColumns={[
+              {
+                key: 'geom',
+                label: 'Геометрия',
+                value: (r) => (r as SpatialTableRow).geom_columns?.join(', ') ?? null,
+              },
+            ]}
+          />
+        </div>
       ) : (
         <AnalysisTable rows={noIndex} showSchema={showSchema} exportName={`${prefix}_no_index`} />
       )}
