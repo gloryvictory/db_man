@@ -263,3 +263,29 @@ ${sections}
 
   downloadBlob(new Blob([html], { type: 'text/html;charset=utf-8' }), `${safeFilename(report.title)}.html`);
 }
+
+function mdCell(s: string): string {
+  return s.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
+}
+
+export function exportReportMarkdown(report: Report): void {
+  const lines: string[] = [`# ${report.title}`, ''];
+  for (const s of report.sections) {
+    lines.push(`## ${s.title}`, '');
+    if (s.kind === 'kv' && s.kv) {
+      lines.push('| Параметр | Значение |', '|---|---|');
+      for (const k of s.kv) lines.push(`| ${mdCell(k.label)} | ${mdCell(k.value)} |`);
+    } else if (s.table) {
+      if (s.table.rows.length === 0) {
+        lines.push('_Нет данных_');
+      } else {
+        lines.push('| ' + s.table.header.map(mdCell).join(' | ') + ' |');
+        lines.push('|' + s.table.header.map(() => '---').join('|') + '|');
+        for (const r of s.table.rows) lines.push('| ' + r.map(mdCell).join(' | ') + ' |');
+      }
+    }
+    lines.push('');
+  }
+  const md = lines.join('\n');
+  downloadBlob(new Blob([md], { type: 'text/markdown;charset=utf-8' }), `${safeFilename(report.title)}.md`);
+}

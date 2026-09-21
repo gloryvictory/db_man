@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { FileSpreadsheet, FileCode } from 'lucide-react';
+import { FileSpreadsheet, FileCode, FileText } from 'lucide-react';
 import { Modal, Button, Loader } from './ui';
 import {
   buildOverviewReport,
@@ -8,6 +8,7 @@ import {
   buildConfigReport,
   exportReportExcel,
   exportReportHtml,
+  exportReportMarkdown,
   type Report,
 } from '../lib/report';
 
@@ -64,6 +65,10 @@ export default function ReportModal({
         <Button size="xs" variant="subtle" disabled={!report} onClick={() => report && exportReportHtml(report)}>
           <FileCode size={13} />
           Экспорт в HTML
+        </Button>
+        <Button size="xs" variant="subtle" disabled={!report} onClick={() => report && exportReportMarkdown(report)}>
+          <FileText size={13} />
+          Экспорт в Markdown
         </Button>
       </div>
 
