@@ -13,6 +13,7 @@ import {
   type StoredConnection,
 } from '../sqlite';
 import { storeSecrets, getSecrets, hasPassword, dropConnection, getPool } from '../pools';
+import { friendlyPgError } from '../pgerror';
 
 const r = Router();
 
@@ -39,7 +40,7 @@ async function testConnection(connId: string, database: string) {
     return { connected: true as const, error: undefined };
   } catch (e) {
     dropConnection(connId);
-    return { connected: false as const, error: e instanceof Error ? e.message : String(e) };
+    return { connected: false as const, error: friendlyPgError(e) };
   }
 }
 

@@ -16,6 +16,7 @@ import auditRouter from './routes/audit';
 import authRouter from './routes/auth';
 import usersRouter from './routes/users';
 import { requireAuth } from './auth';
+import { friendlyPgError } from './pgerror';
 
 initDb(config.sqlitePath);
 
@@ -64,7 +65,7 @@ app.use((req, res, next) => {
 app.use((err: Error & { status?: number }, _req: Request, res: Response, _next: NextFunction) => {
   const status = err?.status || 500;
   if (status >= 500) console.error(err);
-  res.status(status).json({ error: err?.message || 'Internal server error' });
+  res.status(status).json({ error: friendlyPgError(err) });
 });
 
 app.listen(config.port, config.host, () => {

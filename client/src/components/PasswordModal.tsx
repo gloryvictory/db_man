@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import toast from 'react-hot-toast';
 import { useStore } from '../store';
 import { Modal, Field, Input, Button } from './ui';
 
@@ -17,9 +16,8 @@ export default function PasswordModal({ open, onClose }: { open: boolean; onClos
     if (ok) {
       setPwd('');
       onClose();
-    } else {
-      toast.error('Не удалось подключиться');
     }
+    // при ошибке store.connect уже показал причину — модалка остаётся открытой для повтора
   }
 
   return (
