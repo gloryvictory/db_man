@@ -158,6 +158,16 @@ export default function Topbar() {
               >
                 Качество данных
               </div>
+              <div
+                className="cursor-pointer px-3 py-2 text-[13px] hover:bg-[var(--bg-panel)]"
+                onClick={() => {
+                  setReportsOpen(false);
+                  setReportType('config');
+                  setReportOpen(true);
+                }}
+              >
+                Конфигурация
+              </div>
             </div>
           </>
         )}

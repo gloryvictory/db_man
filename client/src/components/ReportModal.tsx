@@ -5,12 +5,13 @@ import { Modal, Button, Loader } from './ui';
 import {
   buildOverviewReport,
   buildQualityReport,
+  buildConfigReport,
   exportReportExcel,
   exportReportHtml,
   type Report,
 } from '../lib/report';
 
-export type ReportType = 'overview' | 'quality';
+export type ReportType = 'overview' | 'quality' | 'config';
 
 export default function ReportModal({
   open,
@@ -35,7 +36,12 @@ export default function ReportModal({
     setReport(null);
     (async () => {
       try {
-        const r = type === 'overview' ? await buildOverviewReport(id, db) : await buildQualityReport(id, db);
+        const r =
+          type === 'overview'
+            ? await buildOverviewReport(id, db)
+            : type === 'quality'
+              ? await buildQualityReport(id, db)
+              : await buildConfigReport(id, db);
         if (!cancelled) setReport(r);
       } catch (e) {
         if (!cancelled) toast.error(e instanceof Error ? e.message : 'Ошибка');

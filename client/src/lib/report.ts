@@ -169,6 +169,23 @@ export async function buildQualityReport(id: string, db: string): Promise<Report
   };
 }
 
+export async function buildConfigReport(id: string, db: string): Promise<Report> {
+  const rows = await api.databaseConfig(id, db);
+  return {
+    title: `Конфигурация — ${db}`,
+    sections: [
+      {
+        title: 'Конфигурация',
+        kind: 'table',
+        table: {
+          header: ['Параметр', 'Значение'],
+          rows: rows.map((r) => [r.name, r.value]),
+        },
+      },
+    ],
+  };
+}
+
 function sheetName(s: string): string {
   return s.replace(/[\\/?*[\]:]/g, '_').slice(0, 31) || 'Лист';
 }
