@@ -82,9 +82,8 @@ export default function Topbar() {
         searchable
         dot={dot}
       />
-      <Button size="xs" variant="primary" onClick={() => setConnOpen(true)} title="Добавить подключение">
-        <Plus size={13} />
-        Подключение
+      <Button variant="icon" title="Добавить подключение" onClick={() => setConnOpen(true)}>
+        <Plus size={15} />
       </Button>
       {store.activeConnId &&
         (store.connected ? (
