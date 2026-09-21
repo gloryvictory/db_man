@@ -6,6 +6,7 @@ export default function PasswordModal({ open, onClose }: { open: boolean; onClos
   const store = useStore();
   const [pwd, setPwd] = useState('');
   const [busy, setBusy] = useState(false);
+  const conn = store.connections.find((c) => c.id === store.activeConnId);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -23,6 +24,21 @@ export default function PasswordModal({ open, onClose }: { open: boolean; onClos
   return (
     <Modal open={open} onClose={onClose} title="Требуется пароль" width={380}>
       <form onSubmit={submit} className="flex flex-col gap-3">
+        {conn && (
+          <div className="rounded-md border border-[var(--border)] bg-[var(--bg-panel)] px-3 py-2 text-[12px] leading-relaxed">
+            <div>
+              <span className="text-[var(--muted)]">Подключение: </span>
+              <span className="text-[var(--text)]">{conn.name}</span>
+              <span className="text-[var(--muted)]">
+                {' '}· {conn.host}:{conn.port}/{conn.database}
+              </span>
+            </div>
+            <div>
+              <span className="text-[var(--muted)]">Логин: </span>
+              <span className="font-mono text-[var(--text)]">{conn.username}</span>
+            </div>
+          </div>
+        )}
         <Field label="Пароль">
           <Input
             type="password"
