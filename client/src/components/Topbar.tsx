@@ -82,6 +82,10 @@ export default function Topbar() {
         searchable
         dot={dot}
       />
+      <Button size="xs" variant="primary" onClick={() => setConnOpen(true)} title="Добавить подключение">
+        <Plus size={13} />
+        Подключение
+      </Button>
       {store.activeConnId &&
         (store.connected ? (
           <Button variant="icon" title="Отключиться" onClick={() => store.disconnect()}>
@@ -115,10 +119,6 @@ export default function Topbar() {
       <Button variant="subtle" onClick={() => setLogsOpen(true)}>
         <List size={14} />
         Журнал
-      </Button>
-      <Button variant="primary" onClick={() => setConnOpen(true)}>
-        <Plus size={14} />
-        Подключение
       </Button>
       <Button
         variant="icon"
