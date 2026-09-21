@@ -142,6 +142,16 @@ export default function Topbar() {
                 className="cursor-pointer px-3 py-2 text-[13px] hover:bg-[var(--bg-panel)]"
                 onClick={() => {
                   setReportsOpen(false);
+                  setReportType('all');
+                  setReportOpen(true);
+                }}
+              >
+                Все в одном
+              </div>
+              <div
+                className="cursor-pointer px-3 py-2 text-[13px] hover:bg-[var(--bg-panel)]"
+                onClick={() => {
+                  setReportsOpen(false);
                   setReportType('overview');
                   setReportOpen(true);
                 }}

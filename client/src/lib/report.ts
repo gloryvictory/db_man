@@ -2,7 +2,7 @@ import * as XLSX from 'xlsx';
 import { api } from '../api';
 import { downloadBlob } from './export';
 import { formatBytes, formatDateRel } from './format';
-import type { DatabaseInfo, DatabaseStats, DatabaseTableRow, DataQualityResult } from '../types';
+import type { DatabaseInfo, DatabaseStats, DatabaseTableRow, DataQualityResult, ServerConfigRow } from '../types';
 
 export interface ReportKv {
   label: string;
@@ -136,52 +136,72 @@ export async function buildOverviewReport(id: string, db: string): Promise<Repor
   };
 }
 
+function qualitySections(q: DataQualityResult): ReportSection[] {
+  return [
+    {
+      title: 'Таблицы без Пространственного индекса',
+      kind: 'table',
+      table: {
+        header: ['Схема', 'Имя таблицы', 'Геометрия (колонки)'],
+        rows: q.spatial.map((r) => [r.schema, r.name, (r.geom_columns ?? []).join(', ')]),
+      },
+    },
+    {
+      title: 'Таблицы без индексов',
+      kind: 'table',
+      table: {
+        header: ['Схема', 'Имя таблицы', 'Тип', 'Комментарий', 'Колонок', 'Строк (оценка)', 'Размер таблицы'],
+        rows: q.noIndex.map((r) => [
+          r.schema,
+          r.name,
+          r.kind,
+          r.comment ?? '',
+          num(r.column_count),
+          num(r.row_estimate),
+          formatBytes(r.table_size),
+        ]),
+      },
+    },
+  ];
+}
+
+function configSection(rows: ServerConfigRow[]): ReportSection {
+  return {
+    title: 'Конфигурация',
+    kind: 'table',
+    table: {
+      header: ['Параметр', 'Значение'],
+      rows: rows.map((r) => [r.name, r.value]),
+    },
+  };
+}
+
 export async function buildQualityReport(id: string, db: string): Promise<Report> {
   const q: DataQualityResult = await api.databaseDataQuality(id, db);
-  return {
-    title: `Качество данных — ${db}`,
-    sections: [
-      {
-        title: 'Таблицы без Пространственного индекса',
-        kind: 'table',
-        table: {
-          header: ['Схема', 'Имя таблицы', 'Геометрия (колонки)'],
-          rows: q.spatial.map((r) => [r.schema, r.name, (r.geom_columns ?? []).join(', ')]),
-        },
-      },
-      {
-        title: 'Таблицы без индексов',
-        kind: 'table',
-        table: {
-          header: ['Схема', 'Имя таблицы', 'Тип', 'Комментарий', 'Колонок', 'Строк (оценка)', 'Размер таблицы'],
-          rows: q.noIndex.map((r) => [
-            r.schema,
-            r.name,
-            r.kind,
-            r.comment ?? '',
-            num(r.column_count),
-            num(r.row_estimate),
-            formatBytes(r.table_size),
-          ]),
-        },
-      },
-    ],
-  };
+  return { title: `Качество данных — ${db}`, sections: qualitySections(q) };
 }
 
 export async function buildConfigReport(id: string, db: string): Promise<Report> {
   const rows = await api.databaseConfig(id, db);
+  return { title: `Конфигурация — ${db}`, sections: [configSection(rows)] };
+}
+
+export async function buildAllInOneReport(id: string, db: string): Promise<Report> {
+  const [info, stats, analysis, q, configRows] = await Promise.all([
+    api.databaseInfo(id, db),
+    api.databaseStats(id, db),
+    api.databaseAnalysis(id, db),
+    api.databaseDataQuality(id, db),
+    api.databaseConfig(id, db),
+  ]);
   return {
-    title: `Конфигурация — ${db}`,
+    title: `Все в одном — ${db}`,
     sections: [
-      {
-        title: 'Конфигурация',
-        kind: 'table',
-        table: {
-          header: ['Параметр', 'Значение'],
-          rows: rows.map((r) => [r.name, r.value]),
-        },
-      },
+      infoSection(info),
+      serviceSection(stats),
+      { title: 'Анализ таблиц', kind: 'table', table: analysisTable(analysis) },
+      ...qualitySections(q),
+      configSection(configRows),
     ],
   };
 }
