@@ -6,7 +6,7 @@ function cellForExcel(v: unknown): unknown {
   return v;
 }
 
-function downloadBlob(blob: Blob, filename: string) {
+export function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

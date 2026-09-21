@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Plus, Power, List, BarChart3, Database, Moon, Sun, User, ChevronDown, LogOut, ShieldCheck } from 'lucide-react';
+import { Plus, Power, List, BarChart3, Database, Moon, Sun, User, ChevronDown, LogOut, ShieldCheck, FileText } from 'lucide-react';
 import { useStore } from '../store';
 import { getTheme, applyTheme, type Theme } from '../lib/theme';
 import { Button, Select } from './ui';
@@ -8,6 +8,7 @@ import ConnectionModal from './ConnectionModal';
 import LogsModal from './LogsModal';
 import PasswordModal from './PasswordModal';
 import AdminPanel from './AdminPanel';
+import ReportModal, { type ReportType } from './ReportModal';
 import { useAuth } from '../store/authStore';
 
 export default function Topbar() {
@@ -21,6 +22,9 @@ export default function Topbar() {
   const auth = useAuth();
   const [userOpen, setUserOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [reportsOpen, setReportsOpen] = useState(false);
+  const [reportType, setReportType] = useState<ReportType | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
 
   function toggleTheme() {
     setTheme((t) => {
@@ -119,6 +123,45 @@ export default function Topbar() {
         <List size={14} />
         Журнал
       </Button>
+      <div className="relative">
+        <Button
+          variant="subtle"
+          disabled={!store.selectedDb}
+          title={store.selectedDb ? undefined : 'Сначала выберите базу данных'}
+          onClick={() => setReportsOpen((o) => !o)}
+        >
+          <FileText size={14} />
+          Отчеты
+          <ChevronDown size={12} />
+        </Button>
+        {reportsOpen && (
+          <>
+            <div className="fixed inset-0 z-20" onClick={() => setReportsOpen(false)} />
+            <div className="absolute right-0 top-full z-30 mt-1 w-[220px] overflow-hidden rounded-md border border-[var(--border)] bg-[var(--bg-raised)] shadow-xl">
+              <div
+                className="cursor-pointer px-3 py-2 text-[13px] hover:bg-[var(--bg-panel)]"
+                onClick={() => {
+                  setReportsOpen(false);
+                  setReportType('overview');
+                  setReportOpen(true);
+                }}
+              >
+                Общая информация
+              </div>
+              <div
+                className="cursor-pointer px-3 py-2 text-[13px] hover:bg-[var(--bg-panel)]"
+                onClick={() => {
+                  setReportsOpen(false);
+                  setReportType('quality');
+                  setReportOpen(true);
+                }}
+              >
+                Качество данных
+              </div>
+            </div>
+          </>
+        )}
+      </div>
       <Button
         variant="icon"
         title={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
@@ -179,6 +222,13 @@ export default function Topbar() {
       <LogsModal open={logsOpen} onClose={() => setLogsOpen(false)} />
       <PasswordModal open={pwdOpen} onClose={() => setPwdOpen(false)} />
       <AdminPanel open={adminOpen} onClose={() => setAdminOpen(false)} />
+      <ReportModal
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        type={reportType}
+        id={store.activeConnId}
+        db={store.selectedDb}
+      />
     </header>
   );
 }
