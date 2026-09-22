@@ -105,8 +105,10 @@ export default function Browser() {
           <>
             <div className="border-b border-[var(--border)] px-4 py-3">
               <div className="flex items-baseline gap-2">
-                <h1 className="font-mono text-[16px] font-semibold">{sel.table}</h1>
-                <span className="font-mono text-[12px] text-[var(--amber)]">{sel.schema}.</span>
+                <h1 className="font-mono text-[16px] font-semibold">
+                  <span className="text-[var(--amber)]">{sel.schema}.</span>
+                  {sel.table}
+                </h1>
                 <span className="text-[12px] text-[var(--muted)]">
                   <b className="text-[var(--text)]">{store.columns.length}</b> столбцов ·{' '}
                   <b className="text-[var(--text)]">{store.total.toLocaleString('ru-RU')}</b> строк ·{' '}
