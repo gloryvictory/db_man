@@ -123,7 +123,7 @@ export default function Browser() {
                   items={[
                     { value: 'data', label: 'Данные' },
                     { value: 'structure', label: 'Структура' },
-                    { value: 'sql', label: 'SQL' },
+                    { value: 'sql', label: 'DDL' },
                     { value: 'service', label: 'Сервис' },
                   ]}
                 />
