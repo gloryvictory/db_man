@@ -9,7 +9,7 @@ import DataQualityView from './DataQualityView';
 import { SqlCode } from '../lib/sqlHighlight';
 import { formatDateRel, formatBytes } from '../lib/format';
 import { downloadText } from '../lib/export';
-import type { DatabaseInfo, DatabaseStats, DatabaseTableRow, ServerConfigRow } from '../types';
+import type { DatabaseInfo, DatabaseStats, DatabaseTableRow, ServerConfigRow, TablespaceRow } from '../types';
 
 export default function DatabaseView() {
   const store = useStore();
@@ -18,6 +18,8 @@ export default function DatabaseView() {
   const [analysisRows, setAnalysisRows] = useState<DatabaseTableRow[]>([]);
   const [configRows, setConfigRows] = useState<ServerConfigRow[] | null>(null);
   const [configLoading, setConfigLoading] = useState(false);
+  const [tablespaces, setTablespaces] = useState<TablespaceRow[] | null>(null);
+  const [tsLoading, setTsLoading] = useState(false);
   const [configSearch, setConfigSearch] = useState('');
   const [ddl, setDdl] = useState<string | null>(null);
   const [ddlLoading, setDdlLoading] = useState(false);
@@ -82,6 +84,22 @@ export default function DatabaseView() {
   useEffect(() => {
     if (view === 'ddl') loadDdl();
   }, [view, loadDdl]);
+
+  const loadTablespaces = useCallback(async () => {
+    if (!id || !db || tablespaces) return;
+    setTsLoading(true);
+    try {
+      setTablespaces(await api.tablespaces(id, db));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Ошибка');
+    } finally {
+      setTsLoading(false);
+    }
+  }, [id, db, tablespaces]);
+
+  useEffect(() => {
+    if (view === 'service') loadTablespaces();
+  }, [view, loadTablespaces]);
 
   function copyDdl() {
     if (!ddl) return;
@@ -220,6 +238,38 @@ export default function DatabaseView() {
                   <Info label="Конфликтов" value={(stats?.conflicts ?? 0).toLocaleString('ru-RU')} mono />
                   <Info label="Сброс статистики" value={formatDateRel(stats?.stats_reset ?? null)} />
                 </div>
+              </section>
+
+              <section>
+                <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Табличные пространства</h2>
+                {tsLoading ? (
+                  <div className="grid h-16 place-items-center">
+                    <Loader />
+                  </div>
+                ) : tablespaces ? (
+                  <div className="overflow-hidden rounded-lg border border-[var(--border)]">
+                    <table className="w-full border-collapse font-mono text-[12px]">
+                      <thead>
+                        <tr className="bg-[var(--surface)] text-left">
+                          <th className="border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)]">Имя</th>
+                          <th className="border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)]">Владелец</th>
+                          <th className="border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)]">Расположение</th>
+                          <th className="border-b border-[var(--border-strong)] px-3 py-2 text-right font-medium text-[var(--muted)]">Размер</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tablespaces.map((t) => (
+                          <tr key={t.name} className="border-b border-[var(--border)] last:border-b-0">
+                            <td className="px-3 py-1.5 text-[var(--text)]">{t.name}</td>
+                            <td className="px-3 py-1.5 text-[var(--muted)]">{t.owner}</td>
+                            <td className="px-3 py-1.5 text-[var(--faint)]">{t.location}</td>
+                            <td className="px-3 py-1.5 text-right text-[var(--text)]">{formatBytes(t.size_bytes)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : null}
               </section>
             </div>
           ) : view === 'config' ? (

@@ -7,13 +7,14 @@ import {
   buildQualityReport,
   buildConfigReport,
   buildAllInOneReport,
+  buildSchemaReport,
   exportReportExcel,
   exportReportHtml,
   exportReportMarkdown,
   type Report,
 } from '../lib/report';
 
-export type ReportType = 'overview' | 'quality' | 'config' | 'all';
+export type ReportType = 'overview' | 'quality' | 'config' | 'all' | 'schema';
 
 export default function ReportModal({
   open,
@@ -45,7 +46,9 @@ export default function ReportModal({
               ? await buildQualityReport(id, db)
               : type === 'config'
                 ? await buildConfigReport(id, db)
-                : await buildAllInOneReport(id, db);
+                : type === 'schema'
+                  ? await buildSchemaReport(id, db)
+                  : await buildAllInOneReport(id, db);
         if (!cancelled) setReport(r);
       } catch (e) {
         if (!cancelled) toast.error(e instanceof Error ? e.message : 'Ошибка');

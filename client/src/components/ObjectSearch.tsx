@@ -71,6 +71,7 @@ export default function ObjectSearch() {
       >
         <Search size={13} className="shrink-0 text-[var(--muted)]" />
         <input
+          data-object-search
           className="min-w-0 flex-1 bg-transparent text-[12.5px] text-[var(--text)] outline-none placeholder:text-[var(--faint)]"
           placeholder={enabled ? 'Поиск объектов…' : 'Выберите БД'}
           value={q}

@@ -786,6 +786,33 @@ export async function reindexDatabase(connId: string, db: string): Promise<void>
   await q(pool, { connId, db }, `REINDEX DATABASE ${quote(db)}`);
 }
 
+export interface TablespaceRow {
+  name: string;
+  owner: string;
+  location: string;
+  size_bytes: number;
+}
+
+export async function getTablespaces(connId: string, db: string): Promise<TablespaceRow[]> {
+  const pool = getPool(connId, db);
+  const res = await q(
+    pool,
+    { connId, db },
+    `SELECT t.spcname AS name,
+            pg_get_userbyid(t.spcowner) AS owner,
+            pg_tablespace_location(t.oid) AS location,
+            pg_tablespace_size(t.oid) AS size_bytes
+     FROM pg_tablespace t
+     ORDER BY t.spcname`
+  );
+  return (res.rows as Record<string, unknown>[]).map((r) => ({
+    name: String(r.name),
+    owner: String(r.owner),
+    location: r.location ? String(r.location) : '—',
+    size_bytes: Number(r.size_bytes),
+  }));
+}
+
 // ---------- уровень схемы ----------
 
 export interface SchemaInfo {

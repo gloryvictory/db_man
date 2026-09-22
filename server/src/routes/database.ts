@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getDatabaseInfo, getDatabaseStats, getDatabaseAnalysis, getServerConfig, getDatabaseDdl, getDataQuality, vacuumDatabase, analyzeDatabase, reindexDatabase } from '../db';
+import { getDatabaseInfo, getDatabaseStats, getDatabaseAnalysis, getServerConfig, getDatabaseDdl, getDataQuality, getTablespaces, vacuumDatabase, analyzeDatabase, reindexDatabase } from '../db';
 import { audited } from '../audit';
 
 const r = Router();
@@ -31,6 +31,14 @@ r.get('/:connId/databases/:db/analysis', async (req, res, next) => {
 r.get('/:connId/databases/:db/config', async (req, res, next) => {
   try {
     res.json(await getServerConfig(req.params.connId, req.params.db));
+  } catch (e) {
+    next(e);
+  }
+});
+
+r.get('/:connId/databases/:db/tablespaces', async (req, res, next) => {
+  try {
+    res.json(await getTablespaces(req.params.connId, req.params.db));
   } catch (e) {
     next(e);
   }

@@ -6,6 +6,7 @@ import Overview from './pages/Overview';
 import LoginScreen from './components/LoginScreen';
 import { Loader } from './components/ui';
 import { useAuth } from './store/authStore';
+import { useStore } from './store';
 
 export default function App() {
   const auth = useAuth();
@@ -13,6 +14,26 @@ export default function App() {
   useEffect(() => {
     auth.init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // горячие клавиши: Ctrl/Cmd+K — фокус поиска, F5 — обновить таблицу
+  useEffect(() => {
+    function onKeydown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        document.querySelector<HTMLInputElement>('[data-object-search]')?.focus();
+        return;
+      }
+      if (e.key === 'F5') {
+        const { activeConnId, selected } = useStore.getState();
+        if (activeConnId && selected) {
+          e.preventDefault();
+          useStore.getState().fetchRows();
+        }
+      }
+    }
+    document.addEventListener('keydown', onKeydown);
+    return () => document.removeEventListener('keydown', onKeydown);
   }, []);
 
   if (auth.loading) {

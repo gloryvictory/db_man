@@ -1,4 +1,4 @@
-import type { StoredConnection, User, TableMeta, ColumnMeta, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow, AuditResult, SearchResult, DataQualityResult } from './types';
+import type { StoredConnection, User, TableMeta, ColumnMeta, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow, TablespaceRow, AuditResult, SearchResult, DataQualityResult } from './types';
 
 const BASE_URL = (import.meta.env.BASE_URL ?? '/').replace(/\/+$/, ''); // '' (корень) или '/db_man'
 const BASE = BASE_URL + '/api';
@@ -116,6 +116,8 @@ export const api = {
     http<DatabaseTableRow[]>(`/connections/${id}/databases/${enc(db)}/analysis`),
   databaseConfig: (id: string, db: string) =>
     http<ServerConfigRow[]>(`/connections/${id}/databases/${enc(db)}/config`),
+  tablespaces: (id: string, db: string) =>
+    http<TablespaceRow[]>(`/connections/${id}/databases/${enc(db)}/tablespaces`),
   databaseDdl: (id: string, db: string) =>
     http<{ ddl: string }>(`/connections/${id}/databases/${enc(db)}/ddl`),
   databaseDataQuality: (id: string, db: string) =>

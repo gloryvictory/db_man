@@ -206,6 +206,34 @@ export async function buildAllInOneReport(id: string, db: string): Promise<Repor
   };
 }
 
+export async function buildSchemaReport(id: string, db: string): Promise<Report> {
+  const analysis = await api.databaseAnalysis(id, db);
+  const bySchema = new Map<string, DatabaseTableRow[]>();
+  for (const r of analysis) {
+    if (!bySchema.has(r.schema)) bySchema.set(r.schema, []);
+    bySchema.get(r.schema)!.push(r);
+  }
+  const schemas = [...bySchema.keys()].sort((a, b) => a.localeCompare(b));
+  return {
+    title: `Схема базы данных — ${db}`,
+    sections: schemas.map((schema) => ({
+      title: schema,
+      kind: 'table',
+      table: {
+        header: ['Таблица', 'Тип', 'Комментарий', 'Колонок', 'Строк (оценка)', 'Размер'],
+        rows: bySchema.get(schema)!.map((r) => [
+          r.name,
+          r.kind,
+          r.comment ?? '',
+          num(r.column_count),
+          num(r.row_estimate),
+          formatBytes(r.total_size),
+        ]),
+      },
+    })),
+  };
+}
+
 function sheetName(s: string): string {
   return s.replace(/[\\/?*[\]:]/g, '_').slice(0, 31) || 'Лист';
 }

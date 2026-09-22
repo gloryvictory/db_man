@@ -65,6 +65,7 @@ export default function Topbar() {
   }
 
   const dot = store.connecting ? 'processing' : store.connected ? 'green' : 'gray';
+  const reportDb = store.selectedDb ?? store.selectedSchema?.db ?? store.selected?.db ?? null;
 
   return (
     <header className="flex h-[46px] items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-raised)] px-3">
@@ -126,8 +127,8 @@ export default function Topbar() {
       <div className="relative">
         <Button
           variant="subtle"
-          disabled={!store.selectedDb}
-          title={store.selectedDb ? undefined : 'Сначала выберите базу данных'}
+          disabled={!reportDb}
+          title={reportDb ? undefined : 'Сначала выберите базу данных'}
           onClick={() => setReportsOpen((o) => !o)}
         >
           <FileText size={14} />
@@ -177,6 +178,16 @@ export default function Topbar() {
                 }}
               >
                 Конфигурация
+              </div>
+              <div
+                className="cursor-pointer px-3 py-2 text-[13px] hover:bg-[var(--bg-panel)]"
+                onClick={() => {
+                  setReportsOpen(false);
+                  setReportType('schema');
+                  setReportOpen(true);
+                }}
+              >
+                Схема базы данных
               </div>
             </div>
           </>
@@ -247,7 +258,7 @@ export default function Topbar() {
         onClose={() => setReportOpen(false)}
         type={reportType}
         id={store.activeConnId}
-        db={store.selectedDb}
+        db={reportDb}
       />
     </header>
   );

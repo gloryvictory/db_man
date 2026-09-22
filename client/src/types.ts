@@ -267,6 +267,13 @@ export interface ServerConfigRow {
   value: string;
 }
 
+export interface TablespaceRow {
+  name: string;
+  owner: string;
+  location: string;
+  size_bytes: number;
+}
+
 export interface AuditEntry {
   id: number;
   username: string | null;
