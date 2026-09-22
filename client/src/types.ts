@@ -274,6 +274,45 @@ export interface TablespaceRow {
   size_bytes: number;
 }
 
+export interface SessionRow {
+  pid: number;
+  usename: string;
+  datname: string | null;
+  application_name: string;
+  client_addr: string | null;
+  state: string;
+  backend_type: string;
+  wait_event_type: string | null;
+  wait_event: string | null;
+  query: string | null;
+  xact_start: string | null;
+  query_start: string | null;
+  state_change: string | null;
+}
+
+export interface LockRow {
+  pid: number | null;
+  locktype: string;
+  mode: string;
+  granted: boolean;
+  relation: string | null;
+  transactionid: string | null;
+  waitstart: string | null;
+}
+
+export interface SlowQueryRow {
+  query: string;
+  calls: number;
+  total_time: number;
+  mean_time: number;
+  rows: number;
+}
+
+export interface SlowQueriesResult {
+  available: boolean;
+  queries: SlowQueryRow[];
+}
+
 export interface AuditEntry {
   id: number;
   username: string | null;

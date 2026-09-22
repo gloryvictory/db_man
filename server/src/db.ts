@@ -813,6 +813,143 @@ export async function getTablespaces(connId: string, db: string): Promise<Tables
   }));
 }
 
+export interface SessionRow {
+  pid: number;
+  usename: string;
+  datname: string | null;
+  application_name: string;
+  client_addr: string | null;
+  state: string;
+  backend_type: string;
+  wait_event_type: string | null;
+  wait_event: string | null;
+  query: string | null;
+  xact_start: string | null;
+  query_start: string | null;
+  state_change: string | null;
+}
+
+export interface LockRow {
+  pid: number | null;
+  locktype: string;
+  mode: string;
+  granted: boolean;
+  relation: string | null;
+  transactionid: string | null;
+  waitstart: string | null;
+}
+
+export interface SlowQueryRow {
+  query: string;
+  calls: number;
+  total_time: number;
+  mean_time: number;
+  rows: number;
+}
+
+export interface SlowQueriesResult {
+  available: boolean;
+  queries: SlowQueryRow[];
+}
+
+export async function getSessions(connId: string, db: string): Promise<SessionRow[]> {
+  const pool = getPool(connId, db);
+  const res = await q(
+    pool,
+    { connId, db },
+    `SELECT pid, usename, datname, application_name,
+            client_addr::text AS client_addr,
+            state, backend_type,
+            wait_event_type, wait_event,
+            xact_start, query_start, state_change, query
+     FROM pg_stat_activity
+     ORDER BY (query_start IS NULL), query_start, pid`
+  );
+  return (res.rows as Record<string, unknown>[]).map((r) => ({
+    pid: Number(r.pid),
+    usename: String(r.usename ?? ''),
+    datname: r.datname ? String(r.datname) : null,
+    application_name: String(r.application_name ?? ''),
+    client_addr: r.client_addr ? String(r.client_addr) : null,
+    state: String(r.state ?? ''),
+    backend_type: String(r.backend_type ?? ''),
+    wait_event_type: r.wait_event_type ? String(r.wait_event_type) : null,
+    wait_event: r.wait_event ? String(r.wait_event) : null,
+    query: r.query ? String(r.query) : null,
+    xact_start: sanitize(r.xact_start) as string | null,
+    query_start: sanitize(r.query_start) as string | null,
+    state_change: sanitize(r.state_change) as string | null,
+  }));
+}
+
+export async function getLocks(connId: string, db: string): Promise<LockRow[]> {
+  const pool = getPool(connId, db);
+  const res = await q(
+    pool,
+    { connId, db },
+    `SELECT l.pid, l.locktype, l.mode, l.granted,
+            CASE WHEN c.relname IS NOT NULL THEN n.nspname || '.' || c.relname ELSE NULL END AS relation,
+            l.transactionid::text AS transactionid,
+            l.waitstart
+     FROM pg_locks l
+     LEFT JOIN pg_class c ON c.oid = l.relation
+     LEFT JOIN pg_namespace n ON n.oid = c.relnamespace
+     ORDER BY l.granted, l.pid`
+  );
+  return (res.rows as Record<string, unknown>[]).map((r) => ({
+    pid: r.pid != null ? Number(r.pid) : null,
+    locktype: String(r.locktype),
+    mode: String(r.mode),
+    granted: Boolean(r.granted),
+    relation: r.relation ? String(r.relation) : null,
+    transactionid: r.transactionid ? String(r.transactionid) : null,
+    waitstart: sanitize(r.waitstart) as string | null,
+  }));
+}
+
+export async function killBackend(
+  connId: string,
+  db: string,
+  pid: number,
+  mode: 'cancel' | 'terminate'
+): Promise<void> {
+  const pool = getPool(connId, db);
+  const fn = mode === 'cancel' ? 'pg_cancel_backend' : 'pg_terminate_backend';
+  const res = await q(pool, { connId, db }, `SELECT ${fn}($1) AS ok`, [pid]);
+  const ok = (res.rows[0] as Record<string, unknown> | undefined)?.ok;
+  if (ok === false) throw new Error('Бэкенд не найден или уже завершён');
+}
+
+export async function getSlowQueries(connId: string, db: string, limit = 50): Promise<SlowQueriesResult> {
+  const pool = getPool(connId, db);
+  const chk = await q(pool, { connId, db }, `SELECT to_regclass('pg_stat_statements') AS reg`);
+  const reg = (chk.rows[0] as Record<string, unknown> | undefined)?.reg;
+  if (!reg) return { available: false, queries: [] };
+  const res = await q(
+    pool,
+    { connId, db },
+    `SELECT query, calls,
+            total_exec_time AS total_time,
+            mean_exec_time AS mean_time,
+            rows
+     FROM pg_stat_statements
+     WHERE query NOT LIKE '%pg_stat_statements%'
+     ORDER BY total_exec_time DESC
+     LIMIT $1`,
+    [limit]
+  );
+  return {
+    available: true,
+    queries: (res.rows as Record<string, unknown>[]).map((r) => ({
+      query: String(r.query ?? ''),
+      calls: Number(r.calls),
+      total_time: Number(r.total_time),
+      mean_time: Number(r.mean_time),
+      rows: Number(r.rows),
+    })),
+  };
+}
+
 // ---------- уровень схемы ----------
 
 export interface SchemaInfo {

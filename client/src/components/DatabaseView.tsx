@@ -6,6 +6,8 @@ import { api } from '../api';
 import { Button, Loader, Tabs, Info, Input } from './ui';
 import AnalysisTable from './AnalysisTable';
 import DataQualityView from './DataQualityView';
+import SessionsView from './SessionsView';
+import SlowQueriesView from './SlowQueriesView';
 import { SqlCode } from '../lib/sqlHighlight';
 import { formatDateRel, formatBytes } from '../lib/format';
 import { downloadText } from '../lib/export';
@@ -23,7 +25,7 @@ export default function DatabaseView() {
   const [configSearch, setConfigSearch] = useState('');
   const [ddl, setDdl] = useState<string | null>(null);
   const [ddlLoading, setDdlLoading] = useState(false);
-  const [view, setView] = useState<'info' | 'service' | 'analysis' | 'config' | 'ddl' | 'quality'>('info');
+  const [view, setView] = useState<'info' | 'service' | 'analysis' | 'config' | 'ddl' | 'quality' | 'sessions' | 'slow'>('info');
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -143,7 +145,7 @@ export default function DatabaseView() {
         <div className="mt-3">
           <Tabs
             value={view}
-            onChange={(v) => setView(v as 'info' | 'service' | 'analysis' | 'config' | 'ddl' | 'quality')}
+            onChange={(v) => setView(v as 'info' | 'service' | 'analysis' | 'config' | 'ddl' | 'quality' | 'sessions' | 'slow')}
             items={[
               { value: 'info', label: 'Информация' },
               { value: 'service', label: 'Сервис' },
@@ -151,6 +153,8 @@ export default function DatabaseView() {
               { value: 'config', label: 'Конфигурация' },
               { value: 'ddl', label: 'DDL' },
               { value: 'quality', label: 'Качество данных' },
+              { value: 'sessions', label: 'Сессии' },
+              { value: 'slow', label: 'Медленные запросы' },
             ]}
           />
         </div>
@@ -344,6 +348,10 @@ export default function DatabaseView() {
             </div>
           ) : view === 'quality' ? (
             <DataQualityView id={id} db={db} showSchema />
+          ) : view === 'sessions' ? (
+            <SessionsView id={id} db={db} />
+          ) : view === 'slow' ? (
+            <SlowQueriesView id={id} db={db} />
           ) : (
             <AnalysisTable rows={analysisRows} showSchema exportName={`${db}_tables`} />
           )}

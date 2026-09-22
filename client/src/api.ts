@@ -1,4 +1,4 @@
-import type { StoredConnection, User, TableMeta, ColumnMeta, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow, TablespaceRow, AuditResult, SearchResult, DataQualityResult } from './types';
+import type { StoredConnection, User, TableMeta, ColumnMeta, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow, TablespaceRow, SessionRow, LockRow, SlowQueriesResult, AuditResult, SearchResult, DataQualityResult } from './types';
 
 const BASE_URL = (import.meta.env.BASE_URL ?? '/').replace(/\/+$/, ''); // '' (корень) или '/db_man'
 const BASE = BASE_URL + '/api';
@@ -118,6 +118,16 @@ export const api = {
     http<ServerConfigRow[]>(`/connections/${id}/databases/${enc(db)}/config`),
   tablespaces: (id: string, db: string) =>
     http<TablespaceRow[]>(`/connections/${id}/databases/${enc(db)}/tablespaces`),
+  sessions: (id: string, db: string) =>
+    http<SessionRow[]>(`/connections/${id}/databases/${enc(db)}/sessions`),
+  locks: (id: string, db: string) =>
+    http<LockRow[]>(`/connections/${id}/databases/${enc(db)}/locks`),
+  cancelBackend: (id: string, db: string, pid: number) =>
+    http<{ ok: boolean }>(`/connections/${id}/databases/${enc(db)}/sessions/${pid}/cancel`, { method: 'POST' }),
+  terminateBackend: (id: string, db: string, pid: number) =>
+    http<{ ok: boolean }>(`/connections/${id}/databases/${enc(db)}/sessions/${pid}/terminate`, { method: 'POST' }),
+  slowQueries: (id: string, db: string) =>
+    http<SlowQueriesResult>(`/connections/${id}/databases/${enc(db)}/slow-queries`),
   databaseDdl: (id: string, db: string) =>
     http<{ ddl: string }>(`/connections/${id}/databases/${enc(db)}/ddl`),
   databaseDataQuality: (id: string, db: string) =>
