@@ -13,7 +13,8 @@ import { useAuth } from '../store/authStore';
 
 const ABOUT = {
   version: '1.0.0',
-  author: 'zamaraev@gmail.com',
+  author: 'Замараев Вячеслав Викторович',
+  email: 'zamaraev@gmail.com',
   release: '22.09.2026',
   repo: 'https://github.com/gloryvictory/db_man',
 };
@@ -82,10 +83,11 @@ export default function Topbar() {
           ▣
         </span>
         <span>db_man</span>
-        <div className="pointer-events-none absolute left-0 top-full z-40 mt-1 hidden w-[230px] rounded-md border border-[var(--border)] bg-[var(--bg-raised)] p-2.5 shadow-xl group-hover:block">
+        <div className="pointer-events-none absolute left-0 top-full z-40 mt-1 hidden w-[280px] rounded-md border border-[var(--border)] bg-[var(--bg-raised)] p-2.5 shadow-xl group-hover:block">
           <div className="text-[13px] font-semibold">db_man</div>
           <div className="mt-0.5 font-mono text-[11.5px] text-[var(--muted)]">v{ABOUT.version}</div>
           <div className="text-[11.5px] text-[var(--muted)]">Автор: {ABOUT.author}</div>
+          <div className="text-[11.5px] text-[var(--muted)]">Email: {ABOUT.email}</div>
           <div className="text-[11.5px] text-[var(--muted)]">Релиз: {ABOUT.release}</div>
           <div className="break-all text-[11.5px] text-[var(--accent)]">{ABOUT.repo}</div>
         </div>
@@ -275,7 +277,7 @@ export default function Topbar() {
         id={store.activeConnId}
         db={reportDb}
       />
-      <Modal open={aboutOpen} onClose={() => setAboutOpen(false)} title="О приложении" width={380}>
+      <Modal open={aboutOpen} onClose={() => setAboutOpen(false)} title="О приложении" width={460}>
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-3">
             <span className="grid h-[40px] w-[40px] place-items-center rounded-lg bg-gradient-to-br from-[var(--accent)] to-[var(--accent-dim)] font-mono text-lg font-bold text-[var(--accent-fg)]">
@@ -291,9 +293,15 @@ export default function Topbar() {
               <span className="text-[var(--muted)]">Версия</span>
               <span className="font-mono">{ABOUT.version}</span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-[var(--muted)]">Автор</span>
-              <span className="font-mono">{ABOUT.author}</span>
+            <div className="flex items-center justify-between gap-3">
+              <span className="shrink-0 text-[var(--muted)]">Автор</span>
+              <span className="text-right">{ABOUT.author}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="shrink-0 text-[var(--muted)]">Email</span>
+              <a href={`mailto:${ABOUT.email}`} className="font-mono text-[var(--accent)] hover:underline">
+                {ABOUT.email}
+              </a>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-[var(--muted)]">Дата релиза</span>
