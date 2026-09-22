@@ -1,4 +1,4 @@
-import type { StoredConnection, User, TableMeta, ColumnMeta, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow, TablespaceRow, SessionRow, LockRow, SlowQueriesResult, QueryResult, AuditResult, SearchResult, DataQualityResult } from './types';
+import type { StoredConnection, User, TableMeta, ColumnMeta, ColumnRow, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow, TablespaceRow, SessionRow, LockRow, SlowQueriesResult, QueryResult, AuditResult, SearchResult, DataQualityResult } from './types';
 
 const BASE_URL = (import.meta.env.BASE_URL ?? '/').replace(/\/+$/, ''); // '' (корень) или '/db_man'
 const BASE = BASE_URL + '/api';
@@ -114,6 +114,10 @@ export const api = {
     http<SchemaTableRow[]>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/analysis`),
   databaseAnalysis: (id: string, db: string) =>
     http<DatabaseTableRow[]>(`/connections/${id}/databases/${enc(db)}/analysis`),
+  databaseColumns: (id: string, db: string) =>
+    http<ColumnRow[]>(`/connections/${id}/databases/${enc(db)}/columns`),
+  schemaColumns: (id: string, db: string, schema: string) =>
+    http<ColumnRow[]>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/columns`),
   databaseConfig: (id: string, db: string) =>
     http<ServerConfigRow[]>(`/connections/${id}/databases/${enc(db)}/config`),
   tablespaces: (id: string, db: string) =>

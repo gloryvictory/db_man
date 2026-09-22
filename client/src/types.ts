@@ -220,6 +220,20 @@ export interface DatabaseTableRow {
   last_analyze: string | null;
 }
 
+export interface ColumnRow {
+  schema: string;
+  table: string;
+  table_kind: string;
+  name: string;
+  data_type: string;
+  position: number;
+  not_null: boolean;
+  default_value: string | null;
+  is_primary: boolean;
+  foreign_ref: string | null;
+  comment: string | null;
+}
+
 export interface SchemaStats {
   table_count: number;
   live_tup: number;

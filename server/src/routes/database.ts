@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getDatabaseInfo, getDatabaseStats, getDatabaseAnalysis, getServerConfig, getDatabaseDdl, getDataQuality, getTablespaces, getSessions, getLocks, killBackend, getSlowQueries, runQuery, renameDatabase, vacuumDatabase, analyzeDatabase, reindexDatabase } from '../db';
+import { getDatabaseInfo, getDatabaseStats, getDatabaseAnalysis, getColumnsList, getServerConfig, getDatabaseDdl, getDataQuality, getTablespaces, getSessions, getLocks, killBackend, getSlowQueries, runQuery, renameDatabase, vacuumDatabase, analyzeDatabase, reindexDatabase } from '../db';
 import { audited } from '../audit';
 
 const r = Router();
@@ -23,6 +23,14 @@ r.get('/:connId/databases/:db/service', async (req, res, next) => {
 r.get('/:connId/databases/:db/analysis', async (req, res, next) => {
   try {
     res.json(await getDatabaseAnalysis(req.params.connId, req.params.db));
+  } catch (e) {
+    next(e);
+  }
+});
+
+r.get('/:connId/databases/:db/columns', async (req, res, next) => {
+  try {
+    res.json(await getColumnsList(req.params.connId, req.params.db));
   } catch (e) {
     next(e);
   }

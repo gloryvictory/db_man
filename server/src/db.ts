@@ -202,6 +202,75 @@ export async function getColumns(connId: string, db: string, schema: string, tab
   }));
 }
 
+export interface ColumnRow {
+  schema: string;
+  table: string;
+  table_kind: string;
+  name: string;
+  data_type: string;
+  position: number;
+  not_null: boolean;
+  default_value: string | null;
+  is_primary: boolean;
+  foreign_ref: string | null;
+  comment: string | null;
+}
+
+/** Все колонки по всем таблицам/представлениям (опционально — только одной схемы). */
+export async function getColumnsList(connId: string, db: string, schema?: string): Promise<ColumnRow[]> {
+  const pool = getPool(connId, db);
+  const params: string[] = [];
+  if (schema) params.push(assertIdent(schema));
+  const schemaFilter = schema ? 'AND n.nspname = $1' : '';
+  const res = await q(
+    pool,
+    { connId, db },
+    `SELECT
+       n.nspname AS schema,
+       c.relname AS "table",
+       CASE c.relkind WHEN 'r' THEN 'table' WHEN 'p' THEN 'partitioned' WHEN 'v' THEN 'view' WHEN 'm' THEN 'materialized' ELSE c.relkind::text END AS table_kind,
+       a.attname AS name,
+       format_type(a.atttypid, a.atttypmod) AS data_type,
+       a.attnum AS position,
+       a.attnotnull AS not_null,
+       pg_get_expr(d.adbin, d.adrelid) AS default_value,
+       col_description(c.oid, a.attnum) AS comment,
+       EXISTS (SELECT 1 FROM pg_index i WHERE i.indrelid = c.oid AND i.indisprimary AND a.attnum = ANY(i.indkey)) AS is_primary,
+       (SELECT rn.nspname || '.' || rc.relname || '.' || ra.attname
+        FROM pg_constraint fk
+        JOIN pg_class rc ON rc.oid = fk.confrelid
+        JOIN pg_namespace rn ON rn.oid = rc.relnamespace
+        JOIN unnest(fk.conkey, fk.confkey) AS k(col, refcol) ON true
+        JOIN pg_attribute ra ON ra.attrelid = rc.oid AND ra.attnum = k.refcol
+        WHERE fk.conrelid = c.oid AND fk.contype = 'f' AND k.col = a.attnum
+        LIMIT 1) AS foreign_ref
+     FROM pg_attribute a
+     JOIN pg_class c ON c.oid = a.attrelid
+     JOIN pg_namespace n ON n.oid = c.relnamespace
+     LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+     WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
+       AND n.nspname NOT LIKE 'pg\\_%' ESCAPE '\\'
+       AND c.relkind IN ('r', 'p', 'v', 'm')
+       AND a.attnum > 0 AND NOT a.attisdropped
+       ${schemaFilter}
+     ORDER BY n.nspname, c.relname, a.attnum`,
+    params
+  );
+  return res.rows.map((r) => ({
+    schema: String(r.schema),
+    table: String(r.table),
+    table_kind: String(r.table_kind),
+    name: String(r.name),
+    data_type: String(r.data_type),
+    position: Number(r.position),
+    not_null: Boolean(r.not_null),
+    default_value: sanitize(r.default_value) as string | null,
+    is_primary: Boolean(r.is_primary),
+    foreign_ref: sanitize(r.foreign_ref) as string | null,
+    comment: sanitize(r.comment) as string | null,
+  }));
+}
+
 // ---------- данные ----------
 
 function buildWhere(columns: ColumnMeta[], filter?: string): string {
