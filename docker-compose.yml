@@ -1,0 +1,44 @@
+# db_man — PostgreSQL Browser
+# Запуск:  docker compose up -d --build
+# Приложение: http://localhost:3001  (по умолчанию admin / admin)
+
+services:
+  dbman:
+    build: .
+    image: db-man:1.0.0
+    container_name: dbman
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      HOST: "0.0.0.0"   # обязателен в контейнере — иначе Express слушает только loopback
+      PORT: "3001"
+    volumes:
+      # SQLite: пользователи, подключения, журнал запросов, аудит
+      - dbman-data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # --- опционально: локальная PostgreSQL для быстрого старта/демо ---
+  # Раскомментируйте блок, если хотите поднять СУБД рядом с приложением.
+  # Тогда в db_man добавьте подключение с host=postgres, port=5432,
+  # database=postgres, username=postgres, password=postgres.
+  #
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: dbman-postgres
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_PASSWORD: postgres
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - dbman-pgdata:/var/lib/postgresql/data
+
+volumes:
+  dbman-data:
+  # dbman-pgdata:

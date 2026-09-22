@@ -1,0 +1,20 @@
+# Git
+.git
+.gitignore
+
+# зависимости и артефакты сборки (пересобираются в образе)
+node_modules
+**/node_modules
+server/dist
+client/dist
+**/dist
+
+# локальные данные (в контейнере — именованный том)
+server/data
+data
+
+# прочее
+*.log
+.hermes
+plans
+docs/screenshot.png
