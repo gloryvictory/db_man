@@ -15,6 +15,7 @@ const ABOUT = {
   version: '1.0.0',
   author: 'zamaraev@gmail.com',
   release: '22.09.2026',
+  repo: 'https://github.com/gloryvictory/db_man',
 };
 
 export default function Topbar() {
@@ -86,6 +87,7 @@ export default function Topbar() {
           <div className="mt-0.5 font-mono text-[11.5px] text-[var(--muted)]">v{ABOUT.version}</div>
           <div className="text-[11.5px] text-[var(--muted)]">Автор: {ABOUT.author}</div>
           <div className="text-[11.5px] text-[var(--muted)]">Релиз: {ABOUT.release}</div>
+          <div className="break-all text-[11.5px] text-[var(--accent)]">{ABOUT.repo}</div>
         </div>
       </div>
 
@@ -296,6 +298,17 @@ export default function Topbar() {
             <div className="flex items-center justify-between">
               <span className="text-[var(--muted)]">Дата релиза</span>
               <span className="font-mono">{ABOUT.release}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="shrink-0 text-[var(--muted)]">Проект</span>
+              <a
+                href={ABOUT.repo}
+                target="_blank"
+                rel="noreferrer"
+                className="break-all text-right font-mono text-[var(--accent)] hover:underline"
+              >
+                {ABOUT.repo}
+              </a>
             </div>
           </div>
         </div>
