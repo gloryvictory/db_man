@@ -117,7 +117,6 @@ export default function ColumnsView({ id, db, schema }: { id: string; db: string
         <span className="font-mono text-[11px] text-[var(--faint)]">
           {rows === null ? '…' : `${filtered.length}${search ? ` из ${total}` : ''}`}
         </span>
-        <div className="flex-1" />
         <div className="relative">
           <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--faint)]" />
           <Input
@@ -127,6 +126,7 @@ export default function ColumnsView({ id, db, schema }: { id: string; db: string
             className="w-[300px] pl-7"
           />
         </div>
+        <div className="flex-1" />
         <Button size="xs" variant="subtle" onClick={doCsv} disabled={!rows?.length}>
           <Download size={12} />
           CSV
