@@ -449,6 +449,23 @@ function JobFormModal({
     }
   );
   const [busy, setBusy] = useState(false);
+  const [databases, setDatabases] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    if (!f.connection_id) {
+      setDatabases(null);
+      return;
+    }
+    let on = true;
+    setDatabases(null);
+    api
+      .databases(f.connection_id)
+      .then((d) => on && setDatabases(d))
+      .catch(() => on && setDatabases([]));
+    return () => {
+      on = false;
+    };
+  }, [f.connection_id]);
 
   const connOptions = connections.map((c) => ({ value: c.id, label: `${c.name} (${c.host}:${c.port})` }));
 
@@ -468,8 +485,22 @@ function JobFormModal({
         <Field label="Подключение">
           <Select value={f.connection_id} onChange={(v) => v && setF((s) => ({ ...s, connection_id: v }))} options={connOptions} width={380} placeholder="Подключение" searchable />
         </Field>
-        <Field label="База данных" description="Имя базы, к которой применить операцию">
-          <Input value={f.database} onChange={(e) => setF((s) => ({ ...s, database: e.target.value }))} placeholder="neo_klass" />
+        <Field
+          label="База данных"
+          description={databases && databases.length === 0 ? 'Подключение не установлено — введите имя вручную' : 'База, к которой применить операцию'}
+        >
+          {databases && databases.length > 0 ? (
+            <Select
+              value={f.database || null}
+              onChange={(v) => v && setF((s) => ({ ...s, database: v }))}
+              options={databases.map((d) => ({ value: d, label: d }))}
+              width={380}
+              placeholder="База данных"
+              searchable
+            />
+          ) : (
+            <Input value={f.database} onChange={(e) => setF((s) => ({ ...s, database: e.target.value }))} placeholder="neo_klass" />
+          )}
         </Field>
         <Field label="Операция">
           <Select
