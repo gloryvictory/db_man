@@ -3,13 +3,19 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Plus, Power, List, BarChart3, Database, Moon, Sun, User, ChevronDown, LogOut, ShieldCheck, FileText } from 'lucide-react';
 import { useStore } from '../store';
 import { getTheme, applyTheme, type Theme } from '../lib/theme';
-import { Button, Select } from './ui';
+import { Button, Select, Modal } from './ui';
 import ConnectionModal from './ConnectionModal';
 import LogsModal from './LogsModal';
 import PasswordModal from './PasswordModal';
 import AdminPanel from './AdminPanel';
 import ReportModal, { type ReportType } from './ReportModal';
 import { useAuth } from '../store/authStore';
+
+const ABOUT = {
+  version: '1.0.0',
+  author: 'zamaraev@gmail.com',
+  release: '22.09.2026',
+};
 
 export default function Topbar() {
   const store = useStore();
@@ -25,6 +31,7 @@ export default function Topbar() {
   const [reportsOpen, setReportsOpen] = useState(false);
   const [reportType, setReportType] = useState<ReportType | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   function toggleTheme() {
     setTheme((t) => {
@@ -69,11 +76,17 @@ export default function Topbar() {
 
   return (
     <header className="flex h-[46px] items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-raised)] px-3">
-      <div className="flex items-center gap-2 text-[13px] font-semibold">
+      <div className="group relative flex cursor-pointer items-center gap-2 text-[13px] font-semibold" onClick={() => setAboutOpen(true)}>
         <span className="grid h-[22px] w-[22px] place-items-center rounded-md bg-gradient-to-br from-[var(--accent)] to-[var(--accent-dim)] font-mono text-xs font-bold text-[var(--accent-fg)]">
           ▣
         </span>
         <span>db_man</span>
+        <div className="pointer-events-none absolute left-0 top-full z-40 mt-1 hidden w-[230px] rounded-md border border-[var(--border)] bg-[var(--bg-raised)] p-2.5 shadow-xl group-hover:block">
+          <div className="text-[13px] font-semibold">db_man</div>
+          <div className="mt-0.5 font-mono text-[11.5px] text-[var(--muted)]">v{ABOUT.version}</div>
+          <div className="text-[11.5px] text-[var(--muted)]">Автор: {ABOUT.author}</div>
+          <div className="text-[11.5px] text-[var(--muted)]">Релиз: {ABOUT.release}</div>
+        </div>
       </div>
 
       <div className="h-[22px] w-px bg-[var(--border)]" />
@@ -260,6 +273,33 @@ export default function Topbar() {
         id={store.activeConnId}
         db={reportDb}
       />
+      <Modal open={aboutOpen} onClose={() => setAboutOpen(false)} title="О приложении" width={380}>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <span className="grid h-[40px] w-[40px] place-items-center rounded-lg bg-gradient-to-br from-[var(--accent)] to-[var(--accent-dim)] font-mono text-lg font-bold text-[var(--accent-fg)]">
+              ▣
+            </span>
+            <div>
+              <div className="text-[16px] font-semibold">db_man</div>
+              <div className="text-[12px] text-[var(--muted)]">браузер баз данных PostgreSQL</div>
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-3 text-[13px]">
+            <div className="flex items-center justify-between">
+              <span className="text-[var(--muted)]">Версия</span>
+              <span className="font-mono">{ABOUT.version}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[var(--muted)]">Автор</span>
+              <span className="font-mono">{ABOUT.author}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[var(--muted)]">Дата релиза</span>
+              <span className="font-mono">{ABOUT.release}</span>
+            </div>
+          </div>
+        </div>
+      </Modal>
     </header>
   );
 }
