@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getDatabaseInfo, getDatabaseStats, getDatabaseAnalysis, getServerConfig, getDatabaseDdl, getDataQuality, getTablespaces, getSessions, getLocks, killBackend, getSlowQueries, runQuery, vacuumDatabase, analyzeDatabase, reindexDatabase } from '../db';
+import { getDatabaseInfo, getDatabaseStats, getDatabaseAnalysis, getServerConfig, getDatabaseDdl, getDataQuality, getTablespaces, getSessions, getLocks, killBackend, getSlowQueries, runQuery, renameDatabase, vacuumDatabase, analyzeDatabase, reindexDatabase } from '../db';
 import { audited } from '../audit';
 
 const r = Router();
@@ -105,6 +105,24 @@ r.post('/:connId/databases/:db/query', async (req, res, next) => {
   }
   try {
     res.json(await runQuery(req.params.connId, req.params.db, sql.trim()));
+  } catch (e) {
+    next(e);
+  }
+});
+
+r.post('/:connId/databases/:db/rename', async (req, res, next) => {
+  const { newName } = (req.body ?? {}) as Record<string, unknown>;
+  if (!newName || typeof newName !== 'string' || !newName.trim()) {
+    return res.status(400).json({ error: 'Укажите новое имя базы данных' });
+  }
+  const nn = newName.trim();
+  if (nn === req.params.db) return res.status(400).json({ error: 'Новое имя совпадает с текущим' });
+  try {
+    await audited(
+      { connId: req.params.connId, action: 'RENAME DATABASE', target: `${req.params.db} → ${nn}` },
+      () => renameDatabase(req.params.connId, req.params.db, nn)
+    );
+    res.json({ ok: true });
   } catch (e) {
     next(e);
   }

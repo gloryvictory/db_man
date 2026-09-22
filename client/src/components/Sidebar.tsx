@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
-import { ChevronRight, Server, Database, Layers, Table } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ChevronRight, Server, Database, Layers, Table, Pencil } from 'lucide-react';
 import { useStore, type TreeNode } from '../store';
 import { Loader } from './ui';
 import ObjectSearch from './ObjectSearch';
+import RenameDatabaseModal from './RenameDatabaseModal';
 
 function iconFor(kind: TreeNode['kind']) {
   switch (kind) {
@@ -17,7 +18,15 @@ function iconFor(kind: TreeNode['kind']) {
   }
 }
 
-function NodeRow({ node, depth }: { node: TreeNode; depth: number }) {
+function NodeRow({
+  node,
+  depth,
+  onDbContextMenu,
+}: {
+  node: TreeNode;
+  depth: number;
+  onDbContextMenu?: (db: string, e: React.MouseEvent) => void;
+}) {
   const store = useStore();
   const expanded = !!store.expanded[node.id];
   const loading = !!store.loadingNodes[node.id];
@@ -50,6 +59,14 @@ function NodeRow({ node, depth }: { node: TreeNode; depth: number }) {
             store.selectSchema(node.db!, node.schema!);
           } else store.toggleNode(node);
         }}
+        onContextMenu={
+          node.kind === 'db' && onDbContextMenu
+            ? (e) => {
+                e.preventDefault();
+                onDbContextMenu(node.db!, e);
+              }
+            : undefined
+        }
       >
         <span
           className={`flex w-3 shrink-0 items-center justify-center text-[9px] text-[var(--faint)] transition-transform ${
@@ -77,7 +94,7 @@ function NodeRow({ node, depth }: { node: TreeNode; depth: number }) {
       {expanded && children && (
         <div className="ml-[13px] border-l border-[var(--border)]">
           {children.map((c) => (
-            <NodeRow key={c.id} node={c} depth={depth + 1} />
+            <NodeRow key={c.id} node={c} depth={depth + 1} onDbContextMenu={onDbContextMenu} />
           ))}
         </div>
       )}
@@ -87,13 +104,31 @@ function NodeRow({ node, depth }: { node: TreeNode; depth: number }) {
 
 export default function Sidebar({ width }: { width: number }) {
   const store = useStore();
+  const [menu, setMenu] = useState<{ x: number; y: number; db: string } | null>(null);
+  const [renameDb, setRenameDb] = useState<string | null>(null);
 
   useEffect(() => {
     store.loadConnections();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    function close() {
+      setMenu(null);
+    }
+    document.addEventListener('mousedown', close);
+    document.addEventListener('wheel', close, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('wheel', close);
+    };
+  }, []);
+
   const conn = store.connections.find((c) => c.id === store.activeConnId);
+
+  function onDbContextMenu(db: string, e: React.MouseEvent) {
+    setMenu({ x: e.clientX, y: e.clientY, db });
+  }
 
   return (
     <aside className="flex shrink-0 flex-col bg-[var(--bg-panel)]" style={{ width }}>
@@ -115,6 +150,7 @@ export default function Sidebar({ width }: { width: number }) {
                 connId: conn.id,
               }}
               depth={0}
+              onDbContextMenu={onDbContextMenu}
             />
             {!store.connected && (
               <div className="px-6 py-1 text-[12px] text-[var(--faint)]">
@@ -124,6 +160,27 @@ export default function Sidebar({ width }: { width: number }) {
           </>
         )}
       </div>
+
+      {menu && (
+        <div
+          className="fixed z-[100] min-w-[180px] rounded-lg border border-[var(--border-strong)] bg-[var(--surface-elevated)] p-1 shadow-lg"
+          style={{ left: menu.x, top: menu.y }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <button
+            className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-[12.5px] text-[var(--text)] hover:bg-[var(--surface-hover)]"
+            onClick={() => {
+              setRenameDb(menu.db);
+              setMenu(null);
+            }}
+          >
+            <Pencil size={13} className="text-[var(--muted)]" />
+            Переименовать
+          </button>
+        </div>
+      )}
+
+      <RenameDatabaseModal open={!!renameDb} db={renameDb} onClose={() => setRenameDb(null)} />
     </aside>
   );
 }

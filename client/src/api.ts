@@ -133,6 +133,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ sql }),
     }),
+  renameDatabase: (id: string, db: string, newName: string) =>
+    http<{ ok: boolean }>(`/connections/${id}/databases/${enc(db)}/rename`, {
+      method: 'POST',
+      body: JSON.stringify({ newName }),
+    }),
   databaseDdl: (id: string, db: string) =>
     http<{ ddl: string }>(`/connections/${id}/databases/${enc(db)}/ddl`),
   databaseDataQuality: (id: string, db: string) =>

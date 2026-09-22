@@ -56,6 +56,7 @@ interface DbManState {
     savePassword?: boolean;
   }) => Promise<{ ok: boolean; connected: boolean; error?: string }>;
   removeConnection: (id: string) => Promise<void>;
+  renameDatabase: (oldDb: string, newName: string) => Promise<void>;
   toggleNode: (node: TreeNode) => Promise<void>;
   loadChildren: (node: TreeNode) => Promise<void>;
   selectTable: (db: string, schema: string, table: string) => Promise<void>;
@@ -156,6 +157,17 @@ export const useStore = create<DbManState>((set, get) => ({
     if (get().activeConnId === id) set({ activeConnId: null, connected: false, selected: null });
     if (localStorage.getItem('dbman-last-conn') === id) localStorage.removeItem('dbman-last-conn');
     await get().loadConnections();
+  },
+
+  renameDatabase: async (oldDb, newName) => {
+    const id = get().activeConnId;
+    if (!id) return;
+    await api.renameDatabase(id, oldDb, newName);
+    const conn = get().connections.find((c) => c.id === id);
+    await get().loadChildren({ id, label: conn ? `${conn.name} · ${conn.host}:${conn.port}` : id, kind: 'conn', connId: id });
+    if (get().selectedDb === oldDb) {
+      set({ selectedDb: null, selectedSchema: null, selected: null, columns: [], rows: [], total: 0 });
+    }
   },
 
   toggleNode: async (node) => {

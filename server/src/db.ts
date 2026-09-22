@@ -1,7 +1,7 @@
 import type { Pool } from 'pg';
 import { getPool, getSecrets } from './pools';
 import { assertIdent, quote } from './ident';
-import { logQuery } from './sqlite';
+import { logQuery, getConnection } from './sqlite';
 import { currentUser } from './auth';
 
 export interface ColumnMeta {
@@ -1018,6 +1018,22 @@ export async function runQuery(connId: string, db: string, sql: string): Promise
     });
     throw e;
   }
+}
+
+export async function renameDatabase(connId: string, db: string, newName: string): Promise<void> {
+  assertIdent(newName, 'имя базы данных');
+  const conn = getConnection(connId);
+  if (!conn) throw new Error('Подключение не найдено');
+  // ALTER DATABASE нельзя выполнить из самой переименовываемой БД —
+  // выполняем на пуле к БД по умолчанию подключения
+  const adminPool = getPool(connId, conn.database);
+  const meta = { connId, db: conn.database };
+  await q(
+    adminPool,
+    meta,
+    `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = ${sqlStr(db)} AND pid <> pg_backend_pid()`
+  );
+  await q(adminPool, meta, `ALTER DATABASE ${quote(db)} RENAME TO ${quote(newName)}`);
 }
 
 // ---------- уровень схемы ----------
