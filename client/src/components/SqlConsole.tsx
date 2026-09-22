@@ -148,14 +148,14 @@ export default function SqlConsole({ id, db }: { id: string; db: string }) {
         </div>
       ) : result ? (
         result.columns.length > 0 ? (
-          <div className="flex min-h-0 flex-col gap-1">
+          <div className="flex min-h-0 flex-1 flex-col gap-1">
             <div className="flex items-center gap-2 text-[11px] text-[var(--muted)]">
               <span>{result.rows.length.toLocaleString('ru-RU')} строк</span>
               <span>·</span>
               <span>{result.duration_ms} мс</span>
               {truncated && <span className="text-[var(--amber)]">показаны первые {MAX_ROWS}</span>}
             </div>
-            <div className="min-h-0 overflow-auto rounded-lg border border-[var(--border)]">
+            <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-[var(--border)]">
               <table className="w-full border-collapse font-mono text-[12px]">
                 <thead>
                   <tr className="bg-[var(--surface)] text-left">

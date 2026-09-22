@@ -166,6 +166,10 @@ export default function DatabaseView() {
         <div className="grid min-h-0 flex-1 place-items-center">
           <Loader />
         </div>
+      ) : view === 'sql' ? (
+        <div className="flex min-h-0 flex-1 flex-col p-4">
+          <SqlConsole id={id} db={db} />
+        </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-auto p-4">
           {view === 'info' ? (
@@ -354,8 +358,6 @@ export default function DatabaseView() {
             <SessionsView id={id} db={db} />
           ) : view === 'slow' ? (
             <SlowQueriesView id={id} db={db} />
-          ) : view === 'sql' ? (
-            <SqlConsole id={id} db={db} />
           ) : (
             <AnalysisTable rows={analysisRows} showSchema exportName={`${db}_tables`} />
           )}
