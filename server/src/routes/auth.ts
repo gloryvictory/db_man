@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { hashPassword, verifyPassword, getUserByLogin, createUser, createSession, deleteSession } from '../sqlite';
+import { hashPassword, verifyPassword, getUserByLogin, createUser, createSession, deleteSession, getSessionUser, logAudit } from '../sqlite';
 import { newToken, cookieHeader, clearCookieHeader, parseCookies, requireAuth, COOKIE_NAME } from '../auth';
 import type { User } from '../sqlite';
 
@@ -23,9 +23,11 @@ r.post('/login', (req, res) => {
   }
   const u = getUserByLogin(String(login));
   if (!u || !verifyPassword(String(password), u.password_hash)) {
+    logAudit({ user_id: null, username: String(login), action: 'LOGIN', target: null, detail: null, status: 'error', error: 'Неверный логин или пароль' });
     return res.status(401).json({ error: 'Неверный логин или пароль' });
   }
   setSession(res, u.id);
+  logAudit({ user_id: u.id, username: u.login, action: 'LOGIN', target: null, detail: null, status: 'ok', error: null });
   res.json({ user: publicUser(u) });
 });
 
@@ -48,7 +50,11 @@ r.post('/register', (req, res) => {
 
 r.post('/logout', (req, res) => {
   const token = parseCookies(req.headers.cookie)[COOKIE_NAME];
-  if (token) deleteSession(token);
+  if (token) {
+    const u = getSessionUser(token);
+    logAudit({ user_id: u?.id ?? null, username: u?.login ?? null, action: 'LOGOUT', target: null, detail: null, status: 'ok', error: null });
+    deleteSession(token);
+  }
   res.setHeader('Set-Cookie', clearCookieHeader());
   res.json({ ok: true });
 });

@@ -1,4 +1,4 @@
-import type { StoredConnection, User, TableMeta, ColumnMeta, ColumnRow, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow, TablespaceRow, SessionRow, LockRow, SlowQueriesResult, QueryResult, AuditResult, SearchResult, DataQualityResult } from './types';
+import type { StoredConnection, User, TableMeta, ColumnMeta, ColumnRow, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow, TablespaceRow, SessionRow, LockRow, SlowQueriesResult, QueryResult, AuditResult, LoginStats, SearchResult, DataQualityResult } from './types';
 
 const BASE_URL = (import.meta.env.BASE_URL ?? '/').replace(/\/+$/, ''); // '' (корень) или '/db_man'
 const BASE = BASE_URL + '/api';
@@ -161,6 +161,7 @@ export const api = {
   logs: (limit: number, offset: number) => http<LogsResult>(`/logs?limit=${limit}&offset=${offset}`),
   clearLogs: () => http<{ ok: boolean }>('/logs', { method: 'DELETE' }),
   audit: (limit: number, offset: number) => http<AuditResult>(`/audit?limit=${limit}&offset=${offset}`),
+  loginStats: () => http<LoginStats>('/audit/login-stats'),
   clearAudit: () => http<{ ok: boolean }>('/audit', { method: 'DELETE' }),
   auditExportUrl: (format: 'xlsx' | 'csv') => `${BASE}/audit/export?format=${format}`,
   exportUrl: (id: string, db: string, schema: string, table: string, format: 'xlsx' | 'csv' | 'sql') =>

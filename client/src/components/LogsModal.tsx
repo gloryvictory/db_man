@@ -1,11 +1,20 @@
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Trash2 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { api } from '../api';
-import type { LogRow, AuditEntry } from '../types';
+import type { LogRow, AuditEntry, LoginStats } from '../types';
 import { Modal, Button, Loader, Tabs } from './ui';
+import { formatDateRel } from '../lib/format';
 
 const PAGE_SIZE = 50;
+
+const tooltipStyle = {
+  background: 'var(--surface-elevated)',
+  border: '1px solid var(--border)',
+  color: 'var(--text)',
+  borderRadius: 8,
+};
 
 function download(url: string) {
   const a = document.createElement('a');
@@ -16,7 +25,7 @@ function download(url: string) {
 }
 
 export default function LogsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [tab, setTab] = useState<'queries' | 'actions'>('queries');
+  const [tab, setTab] = useState<'queries' | 'actions' | 'login'>('queries');
 
   // журнал запросов
   const [rows, setRows] = useState<LogRow[]>([]);
@@ -29,6 +38,11 @@ export default function LogsModal({ open, onClose }: { open: boolean; onClose: (
   const [atotal, setAtotal] = useState(0);
   const [apage, setApage] = useState(0);
   const [aloading, setAloading] = useState(false);
+
+  // статистика входов
+  const [loginStats, setLoginStats] = useState<LoginStats | null>(null);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginView, setLoginView] = useState<'table' | 'chart'>('table');
 
   useEffect(() => {
     if (!open || tab !== 'queries') return;
@@ -55,6 +69,18 @@ export default function LogsModal({ open, onClose }: { open: boolean; onClose: (
       })
       .catch(() => setAloading(false));
   }, [open, tab, apage]);
+
+  useEffect(() => {
+    if (!open || tab !== 'login') return;
+    setLoginLoading(true);
+    api
+      .loginStats()
+      .then((r) => {
+        setLoginStats(r);
+        setLoginLoading(false);
+      })
+      .catch(() => setLoginLoading(false));
+  }, [open, tab]);
 
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const apages = Math.max(1, Math.ceil(atotal / PAGE_SIZE));
@@ -92,10 +118,11 @@ export default function LogsModal({ open, onClose }: { open: boolean; onClose: (
       <div className="mb-3">
         <Tabs
           value={tab}
-          onChange={(v) => setTab(v as 'queries' | 'actions')}
+          onChange={(v) => setTab(v as 'queries' | 'actions' | 'login')}
           items={[
             { value: 'queries', label: 'Запросы' },
             { value: 'actions', label: 'Действия' },
+            { value: 'login', label: 'Аудит' },
           ]}
         />
       </div>
@@ -193,7 +220,7 @@ export default function LogsModal({ open, onClose }: { open: boolean; onClose: (
             </Button>
           </div>
         </>
-      ) : (
+      ) : tab === 'actions' ? (
         <>
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <Button onClick={() => download(api.auditExportUrl('xlsx'))}>⭳ Excel</Button>
@@ -279,6 +306,70 @@ export default function LogsModal({ open, onClose }: { open: boolean; onClose: (
               ›
             </Button>
           </div>
+        </>
+      ) : (
+        <>
+          <div className="mb-3 flex items-center gap-3">
+            <Tabs
+              value={loginView}
+              onChange={(v) => setLoginView(v as 'table' | 'chart')}
+              items={[
+                { value: 'table', label: 'Таблица' },
+                { value: 'chart', label: 'График' },
+              ]}
+            />
+          </div>
+
+          {loginLoading ? (
+            <div className="grid place-items-center py-16">
+              <Loader />
+            </div>
+          ) : loginView === 'table' ? (
+            <div className="max-h-[56vh] overflow-auto rounded-md border border-[var(--border)]">
+              <table className="w-full border-collapse font-mono text-[11.5px]">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-[var(--surface)]">
+                    <th className="border-b border-[var(--border-strong)] px-2 py-1.5 text-left font-medium text-[var(--muted)]">Пользователь</th>
+                    <th className="border-b border-[var(--border-strong)] px-2 py-1.5 text-right font-medium text-[var(--muted)]">Входов</th>
+                    <th className="border-b border-[var(--border-strong)] px-2 py-1.5 text-right font-medium text-[var(--muted)]">Ошибок</th>
+                    <th className="border-b border-[var(--border-strong)] px-2 py-1.5 text-left font-medium text-[var(--muted)]">Последний вход</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(loginStats?.byUser ?? []).length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-2 py-4 text-center text-[var(--null)]">Входов не зафиксировано</td>
+                    </tr>
+                  ) : (
+                    (loginStats?.byUser ?? []).map((u) => (
+                      <tr key={u.username} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)]">
+                        <td className="whitespace-nowrap px-2 py-1 text-[var(--text)]">{u.username}</td>
+                        <td className="whitespace-nowrap px-2 py-1 text-right text-[var(--accent)]">{u.logins}</td>
+                        <td className="whitespace-nowrap px-2 py-1 text-right" style={{ color: u.failures ? 'var(--red)' : 'var(--faint)' }}>
+                          {u.failures || '—'}
+                        </td>
+                        <td className="whitespace-nowrap px-2 py-1 text-[var(--faint)]">{u.last_login ? formatDateRel(u.last_login) : '—'}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (loginStats?.timeline ?? []).length === 0 ? (
+            <div className="grid place-items-center py-16 text-[var(--null)]">Нет данных для графика</div>
+          ) : (
+            <div className="h-[380px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={loginStats?.timeline ?? []} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+                  <CartesianGrid stroke="var(--border)" vertical={false} />
+                  <XAxis dataKey="day" stroke="var(--faint)" tick={{ fill: 'var(--muted)', fontSize: 11, fontFamily: 'monospace' }} />
+                  <YAxis allowDecimals={false} stroke="var(--faint)" tick={{ fill: 'var(--muted)', fontSize: 11 }} width={34} />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(v) => [Number(v).toLocaleString('ru-RU'), 'входов']} labelFormatter={(l) => `Дата: ${l}`} />
+                  <Bar dataKey="logins" fill="var(--accent)" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </>
       )}
     </Modal>

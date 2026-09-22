@@ -357,6 +357,23 @@ export interface AuditResult {
   offset: number;
 }
 
+export interface LoginStatUser {
+  username: string;
+  logins: number;
+  failures: number;
+  last_login: string | null;
+}
+
+export interface LoginStatDay {
+  day: string;
+  logins: number;
+}
+
+export interface LoginStats {
+  byUser: LoginStatUser[];
+  timeline: LoginStatDay[];
+}
+
 export interface SearchResult {
   tables: { schema: string; name: string; comment: string | null; kind: string }[];
   columns: { schema: string; table: string; name: string; data_type: string }[];

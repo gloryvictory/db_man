@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as XLSX from 'xlsx';
-import { listAudit, countAudit, clearAudit } from '../sqlite';
+import { listAudit, countAudit, clearAudit, getLoginStats } from '../sqlite';
 
 const r = Router();
 
@@ -10,6 +10,11 @@ r.get('/', (req, res) => {
   const offset = Math.max(parseInt(q.offset, 10) || 0, 0);
   const isAdmin = req.user!.role === 'admin';
   res.json({ rows: listAudit(limit, offset, req.user!.id, isAdmin), total: countAudit(req.user!.id, isAdmin), limit, offset });
+});
+
+r.get('/login-stats', (req, res) => {
+  const isAdmin = req.user!.role === 'admin';
+  res.json(getLoginStats(isAdmin ? null : req.user!.login));
 });
 
 function cell(v: unknown): unknown {

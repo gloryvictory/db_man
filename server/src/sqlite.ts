@@ -400,3 +400,54 @@ export function clearAudit(userId: string, isAdmin: boolean): void {
   const sql = `DELETE FROM audit_log${scopedWhere(isAdmin)}`;
   db.prepare(sql).run(...(isAdmin ? [] : [userId]));
 }
+
+// ---------- статистика входов ----------
+
+export interface LoginStatUser {
+  username: string;
+  logins: number;
+  failures: number;
+  last_login: string | null;
+}
+
+export interface LoginStatDay {
+  day: string;
+  logins: number;
+}
+
+export interface LoginStats {
+  byUser: LoginStatUser[];
+  timeline: LoginStatDay[];
+}
+
+/** Статистика входов пользователей (scopeUsername = null → все, для админа). */
+export function getLoginStats(scopeUsername: string | null): LoginStats {
+  const where = scopeUsername ? 'AND username = ?' : '';
+  const params: string[] = scopeUsername ? [scopeUsername] : [];
+
+  const byUser = db
+    .prepare(
+      `SELECT
+         COALESCE(username, '—') AS username,
+         COALESCE(SUM(CASE WHEN status = 'ok' THEN 1 ELSE 0 END), 0) AS logins,
+         COALESCE(SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END), 0) AS failures,
+         MAX(CASE WHEN status = 'ok' THEN created_at END) AS last_login
+       FROM audit_log
+       WHERE action = 'LOGIN' ${where}
+       GROUP BY username
+       ORDER BY logins DESC, username`
+    )
+    .all(...params) as unknown as LoginStatUser[];
+
+  const timeline = db
+    .prepare(
+      `SELECT substr(created_at, 1, 10) AS day, COUNT(*) AS logins
+       FROM audit_log
+       WHERE action = 'LOGIN' AND status = 'ok' ${where}
+       GROUP BY day
+       ORDER BY day`
+    )
+    .all(...params) as unknown as LoginStatDay[];
+
+  return { byUser, timeline };
+}
