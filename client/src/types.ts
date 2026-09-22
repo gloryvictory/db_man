@@ -388,3 +388,59 @@ export interface DataQualityResult {
   spatial: SpatialTableRow[];
   noIndex: DatabaseTableRow[];
 }
+
+export interface MaintenanceJob {
+  id: string;
+  connection_id: string;
+  database: string;
+  job_type: 'vacuum' | 'analyze' | 'reindex';
+  schedule_type: 'daily' | 'weekly' | 'hours';
+  schedule_value: string;
+  enabled: boolean;
+  catch_up: boolean;
+  last_run_at: string | null;
+  next_run_at: string | null;
+  created_at: string;
+}
+
+export interface MaintenanceRun {
+  id: number;
+  job_id: string;
+  started_at: string;
+  finished_at: string | null;
+  status: 'ok' | 'error' | 'skipped';
+  duration_ms: number | null;
+  error: string | null;
+  detail: string | null;
+}
+
+export interface MaintenanceRunsResult {
+  rows: MaintenanceRun[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface MaintenanceJobStat {
+  job_id: string;
+  job_type: string;
+  database: string;
+  runs: number;
+  ok: number;
+  error: number;
+  last_run: string | null;
+  avg_duration_ms: number | null;
+}
+
+export interface MaintenanceStats {
+  total_runs: number;
+  ok: number;
+  error: number;
+  avg_duration_ms: number | null;
+  byJob: MaintenanceJobStat[];
+}
+
+export interface MaintenanceRunResult {
+  status: 'ok' | 'error' | 'skipped';
+  error: string | null;
+}

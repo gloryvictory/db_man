@@ -126,6 +126,29 @@ export function initDb(dbPath: string): DatabaseSync {
       user_id TEXT,
       created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
     );
+    CREATE TABLE IF NOT EXISTS maintenance_jobs (
+      id TEXT PRIMARY KEY,
+      connection_id TEXT NOT NULL,
+      database TEXT NOT NULL,
+      job_type TEXT NOT NULL,
+      schedule_type TEXT NOT NULL,
+      schedule_value TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      catch_up INTEGER NOT NULL DEFAULT 1,
+      last_run_at TEXT,
+      next_run_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
+    CREATE TABLE IF NOT EXISTS maintenance_runs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id TEXT NOT NULL,
+      started_at TEXT NOT NULL,
+      finished_at TEXT,
+      status TEXT NOT NULL,
+      duration_ms INTEGER,
+      error TEXT,
+      detail TEXT
+    );
   `);
 
   // миграции для существующих БД
@@ -450,4 +473,219 @@ export function getLoginStats(scopeUsername: string | null): LoginStats {
     .all(...params) as unknown as LoginStatDay[];
 
   return { byUser, timeline };
+}
+
+// ---------- обслуживание по расписанию ----------
+
+export interface MaintenanceJob {
+  id: string;
+  connection_id: string;
+  database: string;
+  job_type: 'vacuum' | 'analyze' | 'reindex';
+  schedule_type: 'daily' | 'weekly' | 'hours';
+  schedule_value: string;
+  enabled: boolean;
+  catch_up: boolean;
+  last_run_at: string | null;
+  next_run_at: string | null;
+  created_at: string;
+}
+
+export interface MaintenanceRun {
+  id: number;
+  job_id: string;
+  started_at: string;
+  finished_at: string | null;
+  status: 'ok' | 'error' | 'skipped';
+  duration_ms: number | null;
+  error: string | null;
+  detail: string | null;
+}
+
+type JobRow = Omit<MaintenanceJob, 'enabled' | 'catch_up'> & { enabled: number; catch_up: number };
+
+function toJob(r: JobRow): MaintenanceJob {
+  return { ...r, enabled: Boolean(r.enabled), catch_up: Boolean(r.catch_up) };
+}
+
+function jobScope(userId: string, isAdmin: boolean): { where: string; params: string[] } {
+  return isAdmin
+    ? { where: '', params: [] }
+    : { where: 'WHERE connection_id IN (SELECT id FROM connections WHERE user_id = ?)', params: [userId] };
+}
+
+export function listMaintenanceJobs(userId: string, isAdmin: boolean): MaintenanceJob[] {
+  const s = jobScope(userId, isAdmin);
+  const rows = db.prepare(`SELECT * FROM maintenance_jobs ${s.where} ORDER BY created_at`).all(...s.params) as unknown as JobRow[];
+  return rows.map(toJob);
+}
+
+export function getMaintenanceJob(id: string): MaintenanceJob | undefined {
+  const r = db.prepare('SELECT * FROM maintenance_jobs WHERE id = ?').get(id) as unknown as JobRow | undefined;
+  return r ? toJob(r) : undefined;
+}
+
+export function createMaintenanceJob(
+  data: Omit<MaintenanceJob, 'id' | 'enabled' | 'catch_up' | 'last_run_at' | 'next_run_at' | 'created_at'> & {
+    enabled?: boolean;
+    catch_up?: boolean;
+    next_run_at?: string;
+  }
+): MaintenanceJob {
+  const id = randomUUID();
+  db.prepare(
+    `INSERT INTO maintenance_jobs (id, connection_id, database, job_type, schedule_type, schedule_value, enabled, catch_up, last_run_at, next_run_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)`
+  ).run(
+    id,
+    data.connection_id,
+    data.database,
+    data.job_type,
+    data.schedule_type,
+    data.schedule_value,
+    data.enabled === false ? 0 : 1,
+    data.catch_up === false ? 0 : 1,
+    data.next_run_at ?? null
+  );
+  return getMaintenanceJob(id)!;
+}
+
+export function updateMaintenanceJob(
+  id: string,
+  data: Partial<Pick<MaintenanceJob, 'database' | 'job_type' | 'schedule_type' | 'schedule_value' | 'enabled' | 'catch_up'>>
+): MaintenanceJob | undefined {
+  const cur = getMaintenanceJob(id);
+  if (!cur) return undefined;
+  const next = { ...cur, ...data };
+  db.prepare(
+    `UPDATE maintenance_jobs SET database = ?, job_type = ?, schedule_type = ?, schedule_value = ?, enabled = ?, catch_up = ? WHERE id = ?`
+  ).run(next.database, next.job_type, next.schedule_type, next.schedule_value, next.enabled ? 1 : 0, next.catch_up ? 1 : 0, id);
+  return getMaintenanceJob(id);
+}
+
+export function setMaintenanceJobEnabled(id: string, enabled: boolean): void {
+  db.prepare('UPDATE maintenance_jobs SET enabled = ? WHERE id = ?').run(enabled ? 1 : 0, id);
+}
+
+export function deleteMaintenanceJob(id: string): void {
+  db.prepare('DELETE FROM maintenance_jobs WHERE id = ?').run(id);
+  db.prepare('DELETE FROM maintenance_runs WHERE job_id = ?').run(id);
+}
+
+/** Пометить запуск: last_run_at + следующий запуск. */
+export function setMaintenanceJobRun(id: string, last_run_at: string, next_run_at: string): void {
+  db.prepare('UPDATE maintenance_jobs SET last_run_at = ?, next_run_at = ? WHERE id = ?').run(last_run_at, next_run_at, id);
+}
+
+/** Задания, готовые к запуску (enabled и next_run_at <= now или ещё не запускались). */
+export function getDueJobs(nowIso: string): MaintenanceJob[] {
+  const rows = db.prepare(
+    `SELECT * FROM maintenance_jobs WHERE enabled = 1 AND (next_run_at IS NULL OR next_run_at <= ?) ORDER BY created_at`
+  ).all(nowIso) as unknown as JobRow[];
+  return rows.map(toJob);
+}
+
+export function logMaintenanceRun(run: Omit<MaintenanceRun, 'id'>): void {
+  db.prepare(
+    `INSERT INTO maintenance_runs (job_id, started_at, finished_at, status, duration_ms, error, detail)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(run.job_id, run.started_at, run.finished_at, run.status, run.duration_ms, run.error, run.detail);
+}
+
+export function listMaintenanceRuns(
+  jobId: string | undefined,
+  limit: number,
+  offset: number,
+  userId: string,
+  isAdmin: boolean
+): MaintenanceRun[] {
+  let where = '';
+  const params: (string | number)[] = [];
+  if (!isAdmin) {
+    where = 'WHERE r.job_id IN (SELECT j.id FROM maintenance_jobs j JOIN connections c ON c.id = j.connection_id WHERE c.user_id = ?)';
+    params.push(userId);
+  }
+  if (jobId) {
+    where += (where ? ' AND' : 'WHERE') + ' r.job_id = ?';
+    params.push(jobId);
+  }
+  params.push(limit, offset);
+  return db.prepare(`SELECT r.* FROM maintenance_runs r ${where} ORDER BY r.id DESC LIMIT ? OFFSET ?`).all(...params) as unknown as MaintenanceRun[];
+}
+
+export function countMaintenanceRuns(jobId: string | undefined, userId: string, isAdmin: boolean): number {
+  let where = '';
+  const params: (string | number)[] = [];
+  if (!isAdmin) {
+    where = 'WHERE r.job_id IN (SELECT j.id FROM maintenance_jobs j JOIN connections c ON c.id = j.connection_id WHERE c.user_id = ?)';
+    params.push(userId);
+  }
+  if (jobId) {
+    where += (where ? ' AND' : 'WHERE') + ' r.job_id = ?';
+    params.push(jobId);
+  }
+  const row = db.prepare(`SELECT count(*) AS n FROM maintenance_runs r ${where}`).get(...params) as { n: number };
+  return Number(row.n);
+}
+
+export interface MaintenanceJobStat {
+  job_id: string;
+  job_type: string;
+  database: string;
+  runs: number;
+  ok: number;
+  error: number;
+  last_run: string | null;
+  avg_duration_ms: number | null;
+}
+
+export interface MaintenanceStats {
+  total_runs: number;
+  ok: number;
+  error: number;
+  avg_duration_ms: number | null;
+  byJob: MaintenanceJobStat[];
+}
+
+export function getMaintenanceStats(userId: string, isAdmin: boolean): MaintenanceStats {
+  const scope = isAdmin ? '' : 'WHERE c.user_id = ?';
+  const scopeParams = isAdmin ? [] : [userId];
+
+  const total = db
+    .prepare(
+      `SELECT COUNT(*) AS n,
+              COALESCE(SUM(CASE WHEN r.status = 'ok' THEN 1 ELSE 0 END), 0) AS ok,
+              COALESCE(SUM(CASE WHEN r.status = 'error' THEN 1 ELSE 0 END), 0) AS err,
+              AVG(r.duration_ms) AS avg
+       FROM maintenance_runs r
+       JOIN maintenance_jobs j ON j.id = r.job_id
+       JOIN connections c ON c.id = j.connection_id
+       ${scope}`
+    )
+    .get(...scopeParams) as { n: number; ok: number; err: number; avg: number | null };
+
+  const byJob = db
+    .prepare(
+      `SELECT j.id AS job_id, j.job_type, j.database,
+              COUNT(r.id) AS runs,
+              COALESCE(SUM(CASE WHEN r.status = 'ok' THEN 1 ELSE 0 END), 0) AS ok,
+              COALESCE(SUM(CASE WHEN r.status = 'error' THEN 1 ELSE 0 END), 0) AS error,
+              MAX(CASE WHEN r.status = 'ok' THEN r.finished_at END) AS last_run,
+              AVG(r.duration_ms) AS avg_duration_ms
+       FROM maintenance_jobs j
+       LEFT JOIN maintenance_runs r ON r.job_id = j.id
+       JOIN connections c ON c.id = j.connection_id
+       ${scope}
+       GROUP BY j.id
+       ORDER BY runs DESC, j.database`
+    )
+    .all(...scopeParams) as unknown as MaintenanceJobStat[];
+
+  return {
+    total_runs: Number(total.n),
+    ok: Number(total.ok),
+    error: Number(total.err),
+    avg_duration_ms: total.avg == null ? null : Number(total.avg),
+    byJob,
+  };
 }

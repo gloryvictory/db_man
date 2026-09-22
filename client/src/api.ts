@@ -1,4 +1,4 @@
-import type { StoredConnection, User, TableMeta, ColumnMeta, ColumnRow, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow, TablespaceRow, SessionRow, LockRow, SlowQueriesResult, QueryResult, AuditResult, LoginStats, SearchResult, DataQualityResult } from './types';
+import type { StoredConnection, User, TableMeta, ColumnMeta, ColumnRow, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow, TablespaceRow, SessionRow, LockRow, SlowQueriesResult, QueryResult, AuditResult, LoginStats, SearchResult, DataQualityResult, MaintenanceJob, MaintenanceRun, MaintenanceRunsResult, MaintenanceStats, MaintenanceRunResult } from './types';
 
 const BASE_URL = (import.meta.env.BASE_URL ?? '/').replace(/\/+$/, ''); // '' (корень) или '/db_man'
 const BASE = BASE_URL + '/api';
@@ -163,6 +163,18 @@ export const api = {
   audit: (limit: number, offset: number) => http<AuditResult>(`/audit?limit=${limit}&offset=${offset}`),
   loginStats: () => http<LoginStats>('/audit/login-stats'),
   clearAudit: () => http<{ ok: boolean }>('/audit', { method: 'DELETE' }),
+  // обслуживание по расписанию
+  listMaintenance: () => http<MaintenanceJob[]>('/maintenance'),
+  createMaintenance: (d: Record<string, unknown>) =>
+    http<MaintenanceJob>('/maintenance', { method: 'POST', body: JSON.stringify(d) }),
+  updateMaintenance: (id: string, d: Record<string, unknown>) =>
+    http<MaintenanceJob>(`/maintenance/${id}`, { method: 'PUT', body: JSON.stringify(d) }),
+  deleteMaintenance: (id: string) => http<{ ok: boolean }>(`/maintenance/${id}`, { method: 'DELETE' }),
+  toggleMaintenance: (id: string) => http<{ ok: boolean; enabled: boolean }>(`/maintenance/${id}/toggle`, { method: 'POST' }),
+  runMaintenance: (id: string) => http<MaintenanceRunResult>(`/maintenance/${id}/run`, { method: 'POST' }),
+  maintenanceRuns: (p?: { jobId?: string; limit?: number; offset?: number }) =>
+    http<MaintenanceRunsResult>(`/maintenance/runs` + qs(p as Record<string, string | number | undefined>)),
+  maintenanceStats: () => http<MaintenanceStats>('/maintenance/stats'),
   auditExportUrl: (format: 'xlsx' | 'csv') => `${BASE}/audit/export?format=${format}`,
   exportUrl: (id: string, db: string, schema: string, table: string, format: 'xlsx' | 'csv' | 'sql') =>
     `${BASE}/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables/${enc(table)}/export?format=${format}`,

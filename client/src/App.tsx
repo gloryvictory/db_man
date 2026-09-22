@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import Topbar from './components/Topbar';
 import Browser from './pages/Browser';
 import Overview from './pages/Overview';
+import MaintenanceView from './components/MaintenanceView';
 import LoginScreen from './components/LoginScreen';
 import { Loader } from './components/ui';
 import { useAuth } from './store/authStore';
@@ -55,6 +56,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Browser />} />
           <Route path="/overview" element={<Overview />} />
+          <Route path="/maintenance" element={<MaintenanceView />} />
         </Routes>
       </div>
     </div>

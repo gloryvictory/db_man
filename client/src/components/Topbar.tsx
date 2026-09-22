@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Plus, Power, List, BarChart3, Database, Moon, Sun, User, ChevronDown, LogOut, ShieldCheck, FileText } from 'lucide-react';
+import { Plus, Power, List, BarChart3, Database, Moon, Sun, User, ChevronDown, LogOut, ShieldCheck, FileText, Wrench } from 'lucide-react';
 import { useStore } from '../store';
 import { getTheme, applyTheme, type Theme } from '../lib/theme';
 import { Button, Select, Modal } from './ui';
@@ -134,6 +134,13 @@ export default function Topbar() {
         >
           <BarChart3 size={14} />
           Обзор
+        </Button>
+        <Button
+          variant={location.pathname === '/maintenance' ? 'light' : 'subtle'}
+          onClick={() => navigate('/maintenance')}
+        >
+          <Wrench size={14} />
+          Обслуживание
         </Button>
       </nav>
 

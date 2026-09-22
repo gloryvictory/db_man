@@ -9,6 +9,7 @@ import catalogRouter from './routes/catalog';
 import tableRouter from './routes/table';
 import exportRouter from './routes/export';
 import maintenanceRouter from './routes/maintenance';
+import maintenanceJobsRouter from './routes/maintenanceJobs';
 import databaseRouter from './routes/database';
 import schemaRouter from './routes/schema';
 import logsRouter from './routes/logs';
@@ -17,8 +18,10 @@ import authRouter from './routes/auth';
 import usersRouter from './routes/users';
 import { requireAuth } from './auth';
 import { friendlyPgError } from './pgerror';
+import { startScheduler } from './maintenance';
 
 initDb(config.sqlitePath);
+startScheduler();
 
 const app = express();
 app.use(cors({ credentials: true, origin: true }));
@@ -51,6 +54,7 @@ app.use('/api/connections', databaseRouter);
 app.use('/api/connections', schemaRouter);
 app.use('/api/logs', logsRouter);
 app.use('/api/audit', auditRouter);
+app.use('/api/maintenance', maintenanceJobsRouter);
 
 // раздача собранного клиента (production)
 const clientDist = path.resolve(__dirname, '../../client/dist');
