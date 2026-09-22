@@ -850,6 +850,11 @@ export async function analyzeDatabase(connId: string, db: string): Promise<void>
   await q(pool, { connId, db }, 'ANALYZE');
 }
 
+export async function vacuumAnalyzeDatabase(connId: string, db: string): Promise<void> {
+  const pool = getPool(connId, db);
+  await q(pool, { connId, db }, 'VACUUM ANALYZE');
+}
+
 export async function reindexDatabase(connId: string, db: string): Promise<void> {
   const pool = getPool(connId, db);
   await q(pool, { connId, db }, `REINDEX DATABASE ${quote(db)}`);

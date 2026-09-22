@@ -9,7 +9,7 @@ import {
   type MaintenanceRun,
 } from './sqlite';
 import { storeSecrets } from './pools';
-import { vacuumDatabase, analyzeDatabase, reindexDatabase } from './db';
+import { vacuumDatabase, analyzeDatabase, vacuumAnalyzeDatabase, reindexDatabase } from './db';
 
 export function badRequest(msg: string): Error & { status: number } {
   const e = new Error(msg) as Error & { status: number };
@@ -73,6 +73,7 @@ async function executeJob(job: MaintenanceJob): Promise<{ status: 'ok' | 'error'
   try {
     if (job.job_type === 'vacuum') await vacuumDatabase(job.connection_id, job.database);
     else if (job.job_type === 'analyze') await analyzeDatabase(job.connection_id, job.database);
+    else if (job.job_type === 'vacuum_analyze') await vacuumAnalyzeDatabase(job.connection_id, job.database);
     else await reindexDatabase(job.connection_id, job.database);
     return { status: 'ok', duration_ms: Date.now() - started, error: null };
   } catch (e) {

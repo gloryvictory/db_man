@@ -8,7 +8,7 @@ import { exportToExcel, exportToCsv } from '../lib/export';
 import { formatDateRel } from '../lib/format';
 import type { MaintenanceJob, MaintenanceRun, MaintenanceStats } from '../types';
 
-const JOB_TYPE_LABEL: Record<string, string> = { vacuum: 'VACUUM', analyze: 'ANALYZE', reindex: 'REINDEX' };
+const JOB_TYPE_LABEL: Record<string, string> = { vacuum: 'VACUUM', analyze: 'ANALYZE', vacuum_analyze: 'VACUUM ANALYZE', reindex: 'REINDEX' };
 const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
 function formatSchedule(schedule_type: string, schedule_value: string): string {
@@ -509,6 +509,7 @@ function JobFormModal({
             options={[
               { value: 'vacuum', label: 'VACUUM' },
               { value: 'analyze', label: 'ANALYZE' },
+              { value: 'vacuum_analyze', label: 'VACUUM ANALYZE' },
               { value: 'reindex', label: 'REINDEX' },
             ]}
             width={380}

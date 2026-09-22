@@ -17,7 +17,7 @@ import { computeNextRun, validateSchedule, runMaintenanceJob, badRequest } from 
 
 const r = Router();
 
-const JOB_TYPES = ['vacuum', 'analyze', 'reindex'];
+const JOB_TYPES = ['vacuum', 'analyze', 'vacuum_analyze', 'reindex'];
 const SCHEDULE_TYPES = ['daily', 'weekly', 'hours'];
 
 function ensureOwnership(req: Request, connectionId: string): void {
@@ -33,7 +33,7 @@ function ensureOwnership(req: Request, connectionId: string): void {
 function parseJobBody(req: Request): {
   connection_id: string;
   database: string;
-  job_type: 'vacuum' | 'analyze' | 'reindex';
+  job_type: 'vacuum' | 'analyze' | 'vacuum_analyze' | 'reindex';
   schedule_type: 'daily' | 'weekly' | 'hours';
   schedule_value: string;
   enabled: boolean;
@@ -54,7 +54,7 @@ function parseJobBody(req: Request): {
   return {
     connection_id,
     database,
-    job_type: job_type as 'vacuum' | 'analyze' | 'reindex',
+    job_type: job_type as 'vacuum' | 'analyze' | 'vacuum_analyze' | 'reindex',
     schedule_type: schedule_type as 'daily' | 'weekly' | 'hours',
     schedule_value,
     enabled: b.enabled !== false,
@@ -113,7 +113,7 @@ r.put('/:id', (req, res, next) => {
     validateSchedule(schedule_type, schedule_value);
     const updated = updateMaintenanceJob(req.params.id, {
       database,
-      job_type: job_type as 'vacuum' | 'analyze' | 'reindex',
+      job_type: job_type as 'vacuum' | 'analyze' | 'vacuum_analyze' | 'reindex',
       schedule_type: schedule_type as 'daily' | 'weekly' | 'hours',
       schedule_value,
       enabled: b.enabled !== undefined ? Boolean(b.enabled) : job.enabled,
