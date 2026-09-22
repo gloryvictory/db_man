@@ -950,6 +950,76 @@ export async function getSlowQueries(connId: string, db: string, limit = 50): Pr
   };
 }
 
+export interface QueryColumn {
+  name: string;
+}
+
+export interface QueryResult {
+  command: string;
+  columns: QueryColumn[];
+  rows: unknown[][];
+  rowCount: number;
+  duration_ms: number;
+}
+
+export async function runQuery(connId: string, db: string, sql: string): Promise<QueryResult> {
+  const pool = getPool(connId, db);
+  const start = Date.now();
+  const s = getSecrets(connId);
+  const host = s?.host ?? null;
+  const port = s?.port ?? null;
+  const username = s?.user ?? null;
+  const dsn = host ? `postgresql://${username ?? ''}@${host}:${port ?? 5432}/${db}` : null;
+  try {
+    // без массива параметров — простой протокол: поддерживает несколько операторов;
+    // для multi-statement pg возвращает массив результатов — берём последний
+    const raw = (await pool.query(sql)) as unknown;
+    const res = (Array.isArray(raw) ? raw[raw.length - 1] : raw) as {
+      command?: string;
+      fields?: { name: string }[];
+      rows?: Record<string, unknown>[];
+      rowCount?: number;
+    };
+    const fieldNames = (res.fields ?? []).map((f) => f.name);
+    logQuery({
+      connection_id: connId,
+      database: db,
+      host,
+      port,
+      username,
+      dsn,
+      query: truncate(sql, 300),
+      duration_ms: Date.now() - start,
+      rows: (res.rows ?? []).length,
+      error: null,
+      user_id: currentUser()?.id ?? null,
+    });
+    return {
+      command: String(res.command ?? '').toUpperCase(),
+      columns: (res.fields ?? []).map((f) => ({ name: f.name })),
+      rows: (res.rows ?? []).map((r) => fieldNames.map((n) => sanitize(r[n]))),
+      rowCount: res.rowCount ?? 0,
+      duration_ms: Date.now() - start,
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    logQuery({
+      connection_id: connId,
+      database: db,
+      host,
+      port,
+      username,
+      dsn,
+      query: truncate(sql, 300),
+      duration_ms: Date.now() - start,
+      rows: 0,
+      error: msg,
+      user_id: currentUser()?.id ?? null,
+    });
+    throw e;
+  }
+}
+
 // ---------- уровень схемы ----------
 
 export interface SchemaInfo {

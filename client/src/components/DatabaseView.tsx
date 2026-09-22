@@ -8,6 +8,7 @@ import AnalysisTable from './AnalysisTable';
 import DataQualityView from './DataQualityView';
 import SessionsView from './SessionsView';
 import SlowQueriesView from './SlowQueriesView';
+import SqlConsole from './SqlConsole';
 import { SqlCode } from '../lib/sqlHighlight';
 import { formatDateRel, formatBytes } from '../lib/format';
 import { downloadText } from '../lib/export';
@@ -25,7 +26,7 @@ export default function DatabaseView() {
   const [configSearch, setConfigSearch] = useState('');
   const [ddl, setDdl] = useState<string | null>(null);
   const [ddlLoading, setDdlLoading] = useState(false);
-  const [view, setView] = useState<'info' | 'service' | 'analysis' | 'config' | 'ddl' | 'quality' | 'sessions' | 'slow'>('info');
+  const [view, setView] = useState<'info' | 'service' | 'analysis' | 'config' | 'ddl' | 'quality' | 'sessions' | 'slow' | 'sql'>('info');
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -145,7 +146,7 @@ export default function DatabaseView() {
         <div className="mt-3">
           <Tabs
             value={view}
-            onChange={(v) => setView(v as 'info' | 'service' | 'analysis' | 'config' | 'ddl' | 'quality' | 'sessions' | 'slow')}
+            onChange={(v) => setView(v as 'info' | 'service' | 'analysis' | 'config' | 'ddl' | 'quality' | 'sessions' | 'slow' | 'sql')}
             items={[
               { value: 'info', label: 'Информация' },
               { value: 'service', label: 'Сервис' },
@@ -155,6 +156,7 @@ export default function DatabaseView() {
               { value: 'quality', label: 'Качество данных' },
               { value: 'sessions', label: 'Сессии' },
               { value: 'slow', label: 'Медленные запросы' },
+              { value: 'sql', label: 'SQL' },
             ]}
           />
         </div>
@@ -352,6 +354,8 @@ export default function DatabaseView() {
             <SessionsView id={id} db={db} />
           ) : view === 'slow' ? (
             <SlowQueriesView id={id} db={db} />
+          ) : view === 'sql' ? (
+            <SqlConsole id={id} db={db} />
           ) : (
             <AnalysisTable rows={analysisRows} showSchema exportName={`${db}_tables`} />
           )}

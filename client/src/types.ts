@@ -313,6 +313,18 @@ export interface SlowQueriesResult {
   queries: SlowQueryRow[];
 }
 
+export interface QueryColumn {
+  name: string;
+}
+
+export interface QueryResult {
+  command: string;
+  columns: QueryColumn[];
+  rows: unknown[][];
+  rowCount: number;
+  duration_ms: number;
+}
+
 export interface AuditEntry {
   id: number;
   username: string | null;

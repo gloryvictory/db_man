@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getDatabaseInfo, getDatabaseStats, getDatabaseAnalysis, getServerConfig, getDatabaseDdl, getDataQuality, getTablespaces, getSessions, getLocks, killBackend, getSlowQueries, vacuumDatabase, analyzeDatabase, reindexDatabase } from '../db';
+import { getDatabaseInfo, getDatabaseStats, getDatabaseAnalysis, getServerConfig, getDatabaseDdl, getDataQuality, getTablespaces, getSessions, getLocks, killBackend, getSlowQueries, runQuery, vacuumDatabase, analyzeDatabase, reindexDatabase } from '../db';
 import { audited } from '../audit';
 
 const r = Router();
@@ -93,6 +93,18 @@ r.get('/:connId/databases/:db/slow-queries', async (req, res, next) => {
   const limit = Math.min(parseInt(q.limit, 10) || 50, 500);
   try {
     res.json(await getSlowQueries(req.params.connId, req.params.db, limit));
+  } catch (e) {
+    next(e);
+  }
+});
+
+r.post('/:connId/databases/:db/query', async (req, res, next) => {
+  const { sql } = (req.body ?? {}) as Record<string, unknown>;
+  if (!sql || typeof sql !== 'string' || !sql.trim()) {
+    return res.status(400).json({ error: 'Введите SQL-запрос' });
+  }
+  try {
+    res.json(await runQuery(req.params.connId, req.params.db, sql.trim()));
   } catch (e) {
     next(e);
   }

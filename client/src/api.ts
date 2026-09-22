@@ -1,4 +1,4 @@
-import type { StoredConnection, User, TableMeta, ColumnMeta, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow, TablespaceRow, SessionRow, LockRow, SlowQueriesResult, AuditResult, SearchResult, DataQualityResult } from './types';
+import type { StoredConnection, User, TableMeta, ColumnMeta, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow, TablespaceRow, SessionRow, LockRow, SlowQueriesResult, QueryResult, AuditResult, SearchResult, DataQualityResult } from './types';
 
 const BASE_URL = (import.meta.env.BASE_URL ?? '/').replace(/\/+$/, ''); // '' (корень) или '/db_man'
 const BASE = BASE_URL + '/api';
@@ -128,6 +128,11 @@ export const api = {
     http<{ ok: boolean }>(`/connections/${id}/databases/${enc(db)}/sessions/${pid}/terminate`, { method: 'POST' }),
   slowQueries: (id: string, db: string) =>
     http<SlowQueriesResult>(`/connections/${id}/databases/${enc(db)}/slow-queries`),
+  runQuery: (id: string, db: string, sql: string) =>
+    http<QueryResult>(`/connections/${id}/databases/${enc(db)}/query`, {
+      method: 'POST',
+      body: JSON.stringify({ sql }),
+    }),
   databaseDdl: (id: string, db: string) =>
     http<{ ddl: string }>(`/connections/${id}/databases/${enc(db)}/ddl`),
   databaseDataQuality: (id: string, db: string) =>
