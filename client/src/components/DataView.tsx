@@ -13,6 +13,10 @@ import type { ColumnMeta } from '../types';
 
 const columnHelper = createColumnHelper<Record<string, unknown>>();
 
+const MAX_CELL = 120;
+const MAX_BINARY = 40;
+const MAX_TITLE = 1000;
+
 function cellText(v: unknown): string {
   if (v === null || v === undefined) return 'NULL';
   if (typeof v === 'object') return JSON.stringify(v);
@@ -50,7 +54,7 @@ function HeaderCell({ col }: { col: ColumnMeta }) {
   );
 }
 
-function CellValue({ v }: { v: unknown }) {
+function CellValue({ v, type }: { v: unknown; type?: string }) {
   const { text, kind } = formatValue(v);
   const cls =
     kind === 'null'
@@ -64,7 +68,17 @@ function CellValue({ v }: { v: unknown }) {
           : kind === 'json'
             ? 'text-[var(--violet)]'
             : 'text-[var(--text)]';
-  return <span className={cls}>{text}</span>;
+  // geom/bytea и длинный текст обрезаем, чтобы колонка не растягивалась вправо
+  const isBinary = !!type && /^(geometry|geography|bytea)/i.test(type);
+  const limit = isBinary ? MAX_BINARY : MAX_CELL;
+  const long = text.length > limit;
+  const shown = long ? text.slice(0, limit) + '…' : text;
+  const title = long ? (text.length > MAX_TITLE ? text.slice(0, MAX_TITLE) + '…' : text) : undefined;
+  return (
+    <span className={cls} title={title}>
+      {shown}
+    </span>
+  );
 }
 
 export default function DataView() {
@@ -87,7 +101,7 @@ export default function DataView() {
         columnHelper.accessor(c.name, {
           id: c.name,
           header: () => <HeaderCell col={c} />,
-          cell: (info) => <CellValue v={info.getValue()} />,
+          cell: (info) => <CellValue v={info.getValue()} type={c.data_type} />,
         })
       ),
     [store.columns]
