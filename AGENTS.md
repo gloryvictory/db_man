@@ -1,7 +1,7 @@
 # AGENTS.md — правила работы с репозиторием db_man
 
 Инструкции для AI-агентов (Claude Code, Codex, Cursor и др.). Прочитай целиком
-перед любыми правками. Подробная справка — в docs/`project_prompt.md` и `README.md`.
+перед любыми правками. Подробная справка — в `docs/project_prompt.md` и `README.md`.
 
 ## Что это
 
