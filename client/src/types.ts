@@ -152,8 +152,13 @@ export interface ConnectionDbRow {
   owner: string;
   size_bytes: number;
   encoding: string;
+  collation: string;
+  ctype: string;
+  tablespace: string | null;
+  comment: string | null;
   connection_limit: number;
   allow_conn: boolean;
+  indexes_size_bytes: number;
 }
 
 export interface ConnectionInfo {

@@ -1346,8 +1346,13 @@ export interface ConnectionDbRow {
   owner: string;
   size_bytes: number;
   encoding: string;
+  collation: string;
+  ctype: string;
+  tablespace: string | null;
+  comment: string | null;
   connection_limit: number;
   allow_conn: boolean;
+  indexes_size_bytes: number;
 }
 
 export interface ConnectionInfo {
@@ -1379,22 +1384,53 @@ export async function getConnectionInfo(connId: string): Promise<ConnectionInfo>
             pg_get_userbyid(d.datdba) AS owner,
             pg_database_size(d.oid) AS size_bytes,
             pg_encoding_to_char(d.encoding) AS encoding,
+            d.datcollate AS collation,
+            d.datctype AS ctype,
+            t.spcname AS tablespace,
+            shobj_description(d.oid, 'pg_database') AS comment,
             d.datconnlimit AS connection_limit,
             d.datallowconn AS allow_conn
      FROM pg_database d
+     LEFT JOIN pg_tablespace t ON t.oid = d.dattablespace
      WHERE NOT d.datistemplate
      ORDER BY d.datname`
   );
 
   const s = srv.rows[0] as Record<string, unknown>;
-  const databases = (dbs.rows as Record<string, unknown>[]).map((r) => ({
+  const databases: ConnectionDbRow[] = (dbs.rows as Record<string, unknown>[]).map((r) => ({
     name: String(r.name),
     owner: String(r.owner),
     size_bytes: Number(r.size_bytes),
     encoding: String(r.encoding),
+    collation: String(r.collation),
+    ctype: String(r.ctype),
+    tablespace: sanitize(r.tablespace) as string | null,
+    comment: sanitize(r.comment) as string | null,
     connection_limit: Number(r.connection_limit),
     allow_conn: Boolean(r.allow_conn),
+    indexes_size_bytes: 0,
   }));
+
+  // размер индексов по каждой БД (нужно отдельное подключение к каждой)
+  for (const d of databases) {
+    if (!d.allow_conn) continue;
+    try {
+      const p = getPool(connId, d.name);
+      const r = await q(
+        p,
+        { connId, db: d.name },
+        `SELECT COALESCE(sum(pg_indexes_size(c.oid)), 0) AS n
+         FROM pg_class c
+         JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+           AND n.nspname NOT LIKE 'pg\\_%' ESCAPE '\\'
+           AND c.relkind IN ('r','p','m')`
+      );
+      d.indexes_size_bytes = Number(r.rows[0].n);
+    } catch {
+      d.indexes_size_bytes = 0;
+    }
+  }
 
   return {
     server_version: String(s.server_version),

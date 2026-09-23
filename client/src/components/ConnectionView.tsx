@@ -21,7 +21,7 @@ const ANALYSIS_HEADER = [
   'Последний ANALYZE',
 ];
 
-const DB_HEADER = ['База', 'Владелец', 'Кодировка', 'Лимит соединений', 'Размер'];
+const DB_HEADER = ['База', 'Комментарий', 'Владелец', 'Табличное пространство', 'Кодировка', 'Сортировка', 'Ctype', 'Лимит', 'Индексы', 'Размер'];
 
 export default function ConnectionView() {
   const store = useStore();
@@ -100,9 +100,14 @@ export default function ConnectionView() {
 
   const dbRows = (info?.databases ?? []).map((d) => [
     d.name,
+    d.comment ?? '—',
     d.owner,
+    d.tablespace ?? '—',
     d.encoding,
+    d.collation,
+    d.ctype,
     d.connection_limit === -1 ? 'без ограничений' : d.connection_limit,
+    formatBytes(d.indexes_size_bytes),
     formatBytes(d.size_bytes),
   ]);
 
@@ -165,9 +170,14 @@ export default function ConnectionView() {
                       <thead>
                         <tr className="bg-[var(--surface)] text-left">
                           <th className="border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)]">База</th>
+                          <th className="border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)]">Комментарий</th>
                           <th className="border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)]">Владелец</th>
+                          <th className="border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)]">Табличное пространство</th>
                           <th className="border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)]">Кодировка</th>
+                          <th className="border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)]">Сортировка</th>
+                          <th className="border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)]">Ctype</th>
                           <th className="border-b border-[var(--border-strong)] px-3 py-2 text-right font-medium text-[var(--muted)]">Лимит</th>
+                          <th className="border-b border-[var(--border-strong)] px-3 py-2 text-right font-medium text-[var(--muted)]">Индексы</th>
                           <th className="border-b border-[var(--border-strong)] px-3 py-2 text-right font-medium text-[var(--muted)]">Размер</th>
                         </tr>
                       </thead>
@@ -175,11 +185,18 @@ export default function ConnectionView() {
                         {info.databases.map((d) => (
                           <tr key={d.name} className="border-b border-[var(--border)] last:border-b-0 hover:bg-[var(--surface-hover)]">
                             <td className="px-3 py-1.5 text-[var(--text)]">{d.name}</td>
+                            <td className="max-w-[260px] truncate px-3 py-1.5 text-[var(--faint)]" title={d.comment ?? undefined}>
+                              {d.comment ?? <span className="text-[var(--null)]">—</span>}
+                            </td>
                             <td className="px-3 py-1.5 text-[var(--muted)]">{d.owner}</td>
+                            <td className="px-3 py-1.5 text-[var(--faint)]">{d.tablespace ?? <span className="text-[var(--null)]">—</span>}</td>
                             <td className="px-3 py-1.5 text-[var(--faint)]">{d.encoding}</td>
+                            <td className="px-3 py-1.5 text-[var(--faint)]">{d.collation}</td>
+                            <td className="px-3 py-1.5 text-[var(--faint)]">{d.ctype}</td>
                             <td className="px-3 py-1.5 text-right text-[var(--text)]">
                               {d.connection_limit === -1 ? '∞' : d.connection_limit}
                             </td>
+                            <td className="px-3 py-1.5 text-right text-[var(--faint)]">{formatBytes(d.indexes_size_bytes)}</td>
                             <td className="px-3 py-1.5 text-right text-[var(--text)]">{formatBytes(d.size_bytes)}</td>
                           </tr>
                         ))}
