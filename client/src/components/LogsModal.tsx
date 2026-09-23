@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Search, Download } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { api } from '../api';
-import type { LogRow, AuditEntry, LoginStats } from '../types';
-import { Modal, Button, Loader, Tabs } from './ui';
+import type { LogRow, AuditEntry, LoginStats, MaintenanceRun } from '../types';
+import { Modal, Button, Loader, Tabs, Input } from './ui';
 import { formatDateRel } from '../lib/format';
+import { exportToExcel, exportToCsv } from '../lib/export';
 
 const PAGE_SIZE = 50;
 
@@ -25,7 +26,7 @@ function download(url: string) {
 }
 
 export default function LogsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [tab, setTab] = useState<'queries' | 'actions' | 'login'>('queries');
+  const [tab, setTab] = useState<'queries' | 'actions' | 'login' | 'maintenance'>('queries');
 
   // журнал запросов
   const [rows, setRows] = useState<LogRow[]>([]);
@@ -43,6 +44,11 @@ export default function LogsModal({ open, onClose }: { open: boolean; onClose: (
   const [loginStats, setLoginStats] = useState<LoginStats | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginView, setLoginView] = useState<'table' | 'chart'>('table');
+
+  // отчёт по обслуживанию
+  const [maintRuns, setMaintRuns] = useState<MaintenanceRun[] | null>(null);
+  const [maintLoading, setMaintLoading] = useState(false);
+  const [maintSearch, setMaintSearch] = useState('');
 
   useEffect(() => {
     if (!open || tab !== 'queries') return;
@@ -82,6 +88,28 @@ export default function LogsModal({ open, onClose }: { open: boolean; onClose: (
       .catch(() => setLoginLoading(false));
   }, [open, tab]);
 
+  useEffect(() => {
+    if (!open || tab !== 'maintenance') return;
+    setMaintLoading(true);
+    api
+      .maintenanceRuns({ limit: 200 })
+      .then((r) => {
+        setMaintRuns(r.rows);
+        setMaintLoading(false);
+      })
+      .catch(() => setMaintLoading(false));
+  }, [open, tab]);
+
+  const filteredMaint = useMemo(() => {
+    const q = maintSearch.trim().toLowerCase();
+    const base = maintRuns ?? [];
+    if (!q) return base;
+    return base.filter((r) => [r.detail ?? '', r.status, r.error ?? ''].some((s) => s.toLowerCase().includes(q)));
+  }, [maintRuns, maintSearch]);
+
+  const maintHeader = ['Время', 'Задание', 'Статус', 'Длительность, мс', 'Ошибка'];
+  const maintRows = filteredMaint.map((r) => [r.started_at, r.detail ?? '', r.status, r.duration_ms ?? '', r.error ?? '']);
+
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const apages = Math.max(1, Math.ceil(atotal / PAGE_SIZE));
 
@@ -118,11 +146,12 @@ export default function LogsModal({ open, onClose }: { open: boolean; onClose: (
       <div className="mb-3">
         <Tabs
           value={tab}
-          onChange={(v) => setTab(v as 'queries' | 'actions' | 'login')}
+          onChange={(v) => setTab(v as 'queries' | 'actions' | 'login' | 'maintenance')}
           items={[
             { value: 'queries', label: 'Запросы' },
             { value: 'actions', label: 'Действия' },
             { value: 'login', label: 'Аудит' },
+            { value: 'maintenance', label: 'Обслуживание' },
           ]}
         />
       </div>
@@ -307,7 +336,7 @@ export default function LogsModal({ open, onClose }: { open: boolean; onClose: (
             </Button>
           </div>
         </>
-      ) : (
+      ) : tab === 'login' ? (
         <>
           <div className="mb-3 flex items-center gap-3">
             <Tabs
@@ -370,6 +399,84 @@ export default function LogsModal({ open, onClose }: { open: boolean; onClose: (
               </ResponsiveContainer>
             </div>
           )}
+        </>
+      ) : (
+        <>
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--faint)]" />
+              <Input
+                value={maintSearch}
+                onChange={(e) => setMaintSearch(e.target.value)}
+                placeholder="Поиск по заданию, статусу, ошибке…"
+                className="w-[300px] pl-7"
+              />
+            </div>
+            <div className="flex-1" />
+            <Button size="xs" variant="subtle" onClick={() => exportToCsv('maintenance_report', maintHeader, maintRows)}>
+              <Download size={12} />
+              CSV
+            </Button>
+            <Button size="xs" variant="subtle" onClick={() => exportToExcel('maintenance_report', maintHeader, maintRows)}>
+              <Download size={12} />
+              Excel
+            </Button>
+            <span className="font-mono text-[12px] text-[var(--muted)]">
+              {filteredMaint.length}
+              {maintSearch ? ` из ${maintRuns?.length ?? 0}` : ''} записей
+            </span>
+          </div>
+
+          <div className="max-h-[56vh] overflow-auto rounded-md border border-[var(--border)]">
+            {maintLoading ? (
+              <div className="grid place-items-center py-16">
+                <Loader />
+              </div>
+            ) : (
+              <table className="w-full border-collapse font-mono text-[11.5px]">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-[var(--surface)]">
+                    <th className="border-b border-[var(--border-strong)] px-2 py-1.5 text-left font-medium text-[var(--muted)]">Время</th>
+                    <th className="border-b border-[var(--border-strong)] px-2 py-1.5 text-left font-medium text-[var(--muted)]">Задание</th>
+                    <th className="border-b border-[var(--border-strong)] px-2 py-1.5 text-left font-medium text-[var(--muted)]">Статус</th>
+                    <th className="border-b border-[var(--border-strong)] px-2 py-1.5 text-right font-medium text-[var(--muted)]">Длительность</th>
+                    <th className="border-b border-[var(--border-strong)] px-2 py-1.5 text-left font-medium text-[var(--muted)]">Ошибка</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredMaint.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-2 py-4 text-center text-[var(--null)]">
+                        Записей об обслуживании нет
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredMaint.map((r) => (
+                      <tr key={r.id} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)]">
+                        <td className="whitespace-nowrap px-2 py-1 text-[var(--null)]">{r.started_at}</td>
+                        <td className="px-2 py-1 text-[var(--text)]">{r.detail ?? '—'}</td>
+                        <td className="whitespace-nowrap px-2 py-1">
+                          {r.status === 'ok' ? (
+                            <span className="text-[var(--accent)]">ok</span>
+                          ) : r.status === 'skipped' ? (
+                            <span className="text-[var(--amber)]">пропущен</span>
+                          ) : (
+                            <span className="text-[var(--red)]">ошибка</span>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-2 py-1 text-right text-[var(--text)]">
+                          {r.duration_ms != null ? `${r.duration_ms.toLocaleString('ru-RU')} мс` : '—'}
+                        </td>
+                        <td className="max-w-[360px] truncate px-2 py-1 text-[var(--red)]" title={r.error ?? undefined}>
+                          {r.error ?? <span className="text-[var(--null)]">—</span>}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            )}
+          </div>
         </>
       )}
     </Modal>
