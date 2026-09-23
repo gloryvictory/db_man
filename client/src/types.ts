@@ -444,3 +444,19 @@ export interface MaintenanceRunResult {
   status: 'ok' | 'error' | 'skipped';
   error: string | null;
 }
+
+export interface AdminExport {
+  version: number;
+  exported_at: string;
+  users: { id: string; fio: string; login: string; password_hash: string; role: string; created_at: string }[];
+  connections: StoredConnection[];
+  connection_secrets: { connection_id: string; password: string }[];
+  maintenance_jobs: MaintenanceJob[];
+}
+
+export interface AdminImportResult {
+  users: number;
+  connections: number;
+  secrets: number;
+  jobs: number;
+}

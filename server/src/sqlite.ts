@@ -689,3 +689,75 @@ export function getMaintenanceStats(userId: string, isAdmin: boolean): Maintenan
     byJob,
   };
 }
+
+// ---------- экспорт/импорт данных админки ----------
+
+export interface AdminExport {
+  version: number;
+  exported_at: string;
+  users: { id: string; fio: string; login: string; password_hash: string; role: string; created_at: string }[];
+  connections: StoredConnection[];
+  connection_secrets: { connection_id: string; password: string }[];
+  maintenance_jobs: MaintenanceJob[];
+}
+
+export function exportAdminData(): AdminExport {
+  const users = db
+    .prepare('SELECT id, fio, login, password_hash, role, created_at FROM users ORDER BY login')
+    .all() as unknown as AdminExport['users'];
+  const connections = db.prepare('SELECT * FROM connections ORDER BY name').all() as unknown as StoredConnection[];
+  const connection_secrets = db
+    .prepare('SELECT connection_id, password FROM connection_secrets')
+    .all() as unknown as AdminExport['connection_secrets'];
+  const maintenance_jobs = (db.prepare('SELECT * FROM maintenance_jobs ORDER BY created_at').all() as unknown as JobRow[]).map(toJob);
+  return { version: 1, exported_at: new Date().toISOString(), users, connections, connection_secrets, maintenance_jobs };
+}
+
+export interface AdminImportResult {
+  users: number;
+  connections: number;
+  secrets: number;
+  jobs: number;
+}
+
+export function importAdminData(data: AdminExport): AdminImportResult {
+  const users = Array.isArray(data?.users) ? data.users : [];
+  const connections = Array.isArray(data?.connections) ? data.connections : [];
+  const secrets = Array.isArray(data?.connection_secrets) ? data.connection_secrets : [];
+  const jobs = Array.isArray(data?.maintenance_jobs) ? data.maintenance_jobs : [];
+
+  db.exec('BEGIN');
+  try {
+    for (const u of users) {
+      if (!u || typeof u.id !== 'string' || !u.id || typeof u.login !== 'string' || !u.login) continue;
+      db.prepare(
+        `INSERT INTO users (id, fio, login, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET fio = excluded.fio, login = excluded.login, password_hash = excluded.password_hash, role = excluded.role`
+      ).run(u.id, String(u.fio ?? ''), u.login, u.password_hash ?? '', u.role === 'admin' ? 'admin' : 'user', u.created_at ?? new Date().toISOString());
+    }
+    for (const c of connections) {
+      if (!c || typeof c.id !== 'string' || !c.id || typeof c.host !== 'string' || !c.host) continue;
+      db.prepare(
+        `INSERT INTO connections (id, name, host, port, database, username, user_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET name = excluded.name, host = excluded.host, port = excluded.port, database = excluded.database, username = excluded.username, user_id = excluded.user_id`
+      ).run(c.id, String(c.name ?? ''), c.host, Number(c.port) || 5432, String(c.database ?? ''), String(c.username ?? ''), c.user_id ?? null, c.created_at ?? new Date().toISOString());
+    }
+    for (const s of secrets) {
+      if (!s || typeof s.connection_id !== 'string' || !s.connection_id || typeof s.password !== 'string') continue;
+      db.prepare('INSERT OR REPLACE INTO connection_secrets (connection_id, password) VALUES (?, ?)').run(s.connection_id, s.password);
+    }
+    for (const j of jobs) {
+      if (!j || typeof j.id !== 'string' || !j.id || typeof j.connection_id !== 'string' || !j.connection_id) continue;
+      db.prepare(
+        `INSERT INTO maintenance_jobs (id, connection_id, database, job_type, schedule_type, schedule_value, enabled, catch_up, last_run_at, next_run_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET connection_id = excluded.connection_id, database = excluded.database, job_type = excluded.job_type, schedule_type = excluded.schedule_type, schedule_value = excluded.schedule_value, enabled = excluded.enabled, catch_up = excluded.catch_up, last_run_at = excluded.last_run_at, next_run_at = excluded.next_run_at`
+      ).run(j.id, j.connection_id, String(j.database ?? ''), j.job_type, j.schedule_type, j.schedule_value, j.enabled ? 1 : 0, j.catch_up ? 1 : 0, j.last_run_at ?? null, j.next_run_at ?? null, j.created_at ?? new Date().toISOString());
+    }
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+  return { users: users.length, connections: connections.length, secrets: secrets.length, jobs: jobs.length };
+}

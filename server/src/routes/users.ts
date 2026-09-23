@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { listUsers, createUser, updateUser, deleteUser, getUserById, hashPassword } from '../sqlite';
+import { listUsers, createUser, updateUser, deleteUser, getUserById, hashPassword, exportAdminData, importAdminData, type AdminExport } from '../sqlite';
 import { requireAuth, requireAdmin } from '../auth';
 
 const r = Router();
@@ -7,6 +7,18 @@ r.use(requireAuth, requireAdmin);
 
 r.get('/', (_req, res) => {
   res.json(listUsers());
+});
+
+r.get('/export', (_req, res) => {
+  res.json(exportAdminData());
+});
+
+r.post('/import', (req, res, next) => {
+  try {
+    res.json(importAdminData((req.body ?? {}) as AdminExport));
+  } catch (e) {
+    next(e);
+  }
 });
 
 r.post('/', (req, res) => {

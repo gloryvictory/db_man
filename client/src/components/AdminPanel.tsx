@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import toast from 'react-hot-toast';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Download, Upload } from 'lucide-react';
 import { api } from '../api';
 import { Modal, Button, Field, Input, Select, Loader } from './ui';
-import type { User } from '../types';
+import { downloadText } from '../lib/export';
+import type { User, AdminExport } from '../types';
 
 interface FormState {
   fio: string;
@@ -87,8 +88,48 @@ export default function AdminPanel({ open, onClose }: { open: boolean; onClose: 
     }
   }
 
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function doExport() {
+    try {
+      const data = await api.adminExport();
+      downloadText(`dbman-admin-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(data, null, 2));
+      toast.success('Экспортировано в JSON');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Не удалось экспортировать');
+    }
+  }
+
+  async function doImport(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const data = JSON.parse(await file.text()) as AdminExport;
+      const r = await api.adminImport(data);
+      toast.success(`Импортировано: пользователей ${r.users}, подключений ${r.connections}, паролей ${r.secrets}, заданий ${r.jobs}`);
+      await load();
+    } catch (e2) {
+      toast.error(e2 instanceof Error ? e2.message : 'Не удалось импортировать');
+    } finally {
+      e.target.value = '';
+    }
+  }
+
   return (
     <Modal open={open} onClose={onClose} title="Админка — пользователи" width={720}>
+      <div className="mb-3 flex items-center gap-2">
+        <Button size="xs" variant="subtle" onClick={doExport}>
+          <Download size={12} />
+          Экспорт JSON
+        </Button>
+        <Button size="xs" variant="subtle" onClick={() => fileRef.current?.click()}>
+          <Upload size={12} />
+          Импорт JSON
+        </Button>
+        <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={doImport} />
+        <div className="flex-1" />
+        <span className="text-[11px] text-[var(--faint)]">пользователи · подключения · пароли · задания</span>
+      </div>
       <form
         onSubmit={submit}
         className="mb-4 flex flex-col gap-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-3"

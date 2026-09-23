@@ -1,4 +1,4 @@
-import type { StoredConnection, User, TableMeta, ColumnMeta, ColumnRow, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow, TablespaceRow, SessionRow, LockRow, SlowQueriesResult, QueryResult, AuditResult, LoginStats, SearchResult, DataQualityResult, MaintenanceJob, MaintenanceRun, MaintenanceRunsResult, MaintenanceStats, MaintenanceRunResult } from './types';
+import type { StoredConnection, User, TableMeta, ColumnMeta, ColumnRow, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow, TablespaceRow, SessionRow, LockRow, SlowQueriesResult, QueryResult, AuditResult, LoginStats, SearchResult, DataQualityResult, MaintenanceJob, MaintenanceRun, MaintenanceRunsResult, MaintenanceStats, MaintenanceRunResult, AdminExport, AdminImportResult } from './types';
 
 const BASE_URL = (import.meta.env.BASE_URL ?? '/').replace(/\/+$/, ''); // '' (корень) или '/db_man'
 const BASE = BASE_URL + '/api';
@@ -191,6 +191,8 @@ export const api = {
   me: () => http<{ user: User }>('/auth/me'),
   // управление пользователями (админ)
   listUsers: () => http<User[]>('/users'),
+  adminExport: () => http<AdminExport>('/users/export'),
+  adminImport: (data: AdminExport) => http<AdminImportResult>('/users/import', { method: 'POST', body: JSON.stringify(data) }),
   createUser: (d: { fio: string; login: string; password: string; role?: 'admin' | 'user' }) =>
     http<User>('/users', { method: 'POST', body: JSON.stringify(d) }),
   updateUser: (id: string, d: { fio?: string; password?: string; role?: 'admin' | 'user' }) =>
