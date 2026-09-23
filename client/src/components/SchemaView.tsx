@@ -220,7 +220,7 @@ export default function SchemaView() {
           ) : view === 'columns' ? (
             <ColumnsView id={id} db={schema.db} schema={schema.schema} />
           ) : (
-            <AnalysisTable rows={rows} exportName={`${schema.db}_${schema.schema}_tables`} />
+            <AnalysisTable rows={rows} exportName={`${schema.db}_${schema.schema}_tables`} id={id} db={schema.db} schema={schema.schema} />
           )}
         </div>
       )}

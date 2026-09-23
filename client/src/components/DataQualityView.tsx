@@ -133,6 +133,8 @@ export default function DataQualityView({
             rows={spatial}
             showSchema={showSchema}
             exportName={`${prefix}_spatial`}
+            id={id}
+            db={db}
             onRowContextMenu={(row: AnalysisRow, e) => {
               e.preventDefault();
               const geomCols = (row as AnalysisRow & { geom_columns?: string[] }).geom_columns ?? [];
@@ -149,7 +151,7 @@ export default function DataQualityView({
           />
         </div>
       ) : (
-        <AnalysisTable rows={noIndex} showSchema={showSchema} exportName={`${prefix}_no_index`} />
+        <AnalysisTable rows={noIndex} showSchema={showSchema} exportName={`${prefix}_no_index`} id={id} db={db} />
       )}
 
       {menu && (

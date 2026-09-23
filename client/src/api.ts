@@ -57,6 +57,8 @@ export const api = {
     http<TableMeta[]>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables`),
   columns: (id: string, db: string, schema: string, table: string) =>
     http<ColumnMeta[]>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables/${enc(table)}/columns`),
+  tableCount: (id: string, db: string, schema: string, table: string) =>
+    http<{ count: number }>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables/${enc(table)}/count`).then((r) => r.count),
   rows: (
     id: string,
     db: string,

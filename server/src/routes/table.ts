@@ -1,7 +1,15 @@
 import { Router } from 'express';
-import { getRows } from '../db';
+import { getRows, getTableCount } from '../db';
 
 const r = Router();
+
+r.get('/:connId/databases/:db/schemas/:schema/tables/:table/count', async (req, res, next) => {
+  try {
+    res.json({ count: await getTableCount(req.params.connId, req.params.db, req.params.schema, req.params.table) });
+  } catch (e) {
+    next(e);
+  }
+});
 
 r.get('/:connId/databases/:db/schemas/:schema/tables/:table/rows', async (req, res, next) => {
   try {

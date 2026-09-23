@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Download } from 'lucide-react';
-import { Button } from './ui';
+import { Download, Hash } from 'lucide-react';
+import { api } from '../api';
+import { Button, Loader } from './ui';
 import { formatBytes, formatDateRel } from '../lib/format';
 import { exportToExcel } from '../lib/export';
 
@@ -73,14 +74,38 @@ export default function AnalysisTable({
   exportName,
   onRowContextMenu,
   extraColumns = [],
+  id,
+  db,
+  schema,
 }: {
   rows: AnalysisRow[];
   showSchema?: boolean;
   exportName: string;
   onRowContextMenu?: (row: AnalysisRow, e: React.MouseEvent) => void;
   extraColumns?: ExtraColumn[];
+  id?: string;
+  db?: string;
+  schema?: string;
 }) {
   const [sort, setSort] = useState<SortState>(null);
+  const [exactCounts, setExactCounts] = useState<Record<string, number>>({});
+  const [counting, setCounting] = useState<Record<string, boolean>>({});
+
+  async function countRow(r: AnalysisRow) {
+    if (!id || !db) return;
+    const s = schema ?? r.schema;
+    if (!s) return;
+    const key = `${s}.${r.name}`;
+    setCounting((c) => ({ ...c, [key]: true }));
+    try {
+      const n = await api.tableCount(id, db, s, r.name);
+      setExactCounts((c) => ({ ...c, [key]: n }));
+    } catch {
+      /* ignore */
+    } finally {
+      setCounting((c) => ({ ...c, [key]: false }));
+    }
+  }
 
   const sorted = useMemo(() => {
     if (!sort) return rows;
@@ -213,9 +238,14 @@ export default function AnalysisTable({
             </tr>
           </thead>
           <tbody>
-            {sorted.map((r) => (
+            {sorted.map((r) => {
+              const s = schema ?? r.schema;
+              const key = `${s}.${r.name}`;
+              const canCount = !!(id && db && s);
+              const exact = exactCounts[key];
+              return (
               <tr
-                key={`${r.schema ?? ''}.${r.name}`}
+                key={key}
                 className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)]"
                 onContextMenu={(e) => onRowContextMenu?.(r, e)}
               >
@@ -226,7 +256,30 @@ export default function AnalysisTable({
                 </td>
                 <td className="px-3 py-1.5 text-[var(--muted)]">{r.kind}</td>
                 <td className="px-3 py-1.5 text-right text-[var(--violet)]">{r.column_count}</td>
-                <td className="px-3 py-1.5 text-right text-[var(--text)]">{r.row_estimate.toLocaleString('ru-RU')}</td>
+                <td className="whitespace-nowrap px-3 py-1.5 text-right text-[var(--text)]">
+                  {exact != null ? (
+                    <span className="text-[var(--accent)]" title="точное число строк">
+                      {exact.toLocaleString('ru-RU')}
+                    </span>
+                  ) : (
+                    <>
+                      {r.row_estimate.toLocaleString('ru-RU')}
+                      {canCount && (
+                        <button
+                          type="button"
+                          className="ml-1.5 inline-flex align-middle text-[var(--muted)] hover:text-[var(--accent)]"
+                          title="Посчитать точно"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void countRow(r);
+                          }}
+                        >
+                          {counting[key] ? <Loader size={11} /> : <Hash size={11} />}
+                        </button>
+                      )}
+                    </>
+                  )}
+                </td>
                 <td className="px-3 py-1.5 text-right text-[var(--text)]">{formatBytes(r.table_size)}</td>
                 <td className="px-3 py-1.5 text-right text-[var(--text)]">{formatBytes(r.indexes_size)}</td>
                 <td
@@ -265,7 +318,8 @@ export default function AnalysisTable({
                   </td>
                 ))}
               </tr>
-            ))}
+              );
+            })}
             {sorted.length === 0 && (
               <tr>
                 <td colSpan={colCount} className="px-3 py-3 text-center text-[var(--null)]">

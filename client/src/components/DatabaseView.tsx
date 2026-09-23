@@ -363,7 +363,7 @@ export default function DatabaseView() {
           ) : view === 'columns' ? (
             <ColumnsView id={id} db={db} />
           ) : (
-            <AnalysisTable rows={analysisRows} showSchema exportName={`${db}_tables`} />
+            <AnalysisTable rows={analysisRows} showSchema exportName={`${db}_tables`} id={id} db={db} />
           )}
         </div>
       )}

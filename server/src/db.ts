@@ -271,6 +271,15 @@ export async function getColumnsList(connId: string, db: string, schema?: string
   }));
 }
 
+/** Точное число строк таблицы (SELECT count(*)). */
+export async function getTableCount(connId: string, db: string, schema: string, table: string): Promise<number> {
+  assertIdent(schema);
+  assertIdent(table);
+  const pool = getPool(connId, db);
+  const res = await q(pool, { connId, db }, `SELECT count(*) AS c FROM ${quote(schema)}.${quote(table)}`);
+  return Number(res.rows[0].c);
+}
+
 // ---------- данные ----------
 
 function buildWhere(columns: ColumnMeta[], filter?: string): string {
