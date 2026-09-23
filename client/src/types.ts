@@ -20,6 +20,7 @@ export interface User {
 
 export interface ColumnMeta {
   name: string;
+  comment: string | null;
   data_type: string;
   not_null: boolean;
   default_value: string | null;

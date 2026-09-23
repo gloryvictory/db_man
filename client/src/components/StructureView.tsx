@@ -7,9 +7,10 @@ export default function StructureView() {
   const store = useStore();
 
   function doExport() {
-    const header = ['Столбец', 'Тип', 'NOT NULL', 'Default', 'Ключ', 'Ссылка (FK)'];
+    const header = ['Столбец', 'Комментарий', 'Тип', 'NOT NULL', 'Default', 'Ключ', 'Ссылка (FK)'];
     const data = store.columns.map((c) => [
       c.name,
+      c.comment ?? '',
       c.data_type,
       c.not_null ? 'NOT NULL' : '',
       c.default_value ?? '',
@@ -39,6 +40,9 @@ export default function StructureView() {
               Столбец
             </th>
             <th className="border-b border-[var(--border-strong)] px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">
+              Комментарий
+            </th>
+            <th className="border-b border-[var(--border-strong)] px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">
               Тип
             </th>
             <th className="border-b border-[var(--border-strong)] px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">
@@ -63,6 +67,9 @@ export default function StructureView() {
                 ) : null}
               </td>
               <td className="px-3 py-1.5 text-[var(--text)]">{c.name}</td>
+              <td className="px-3 py-1.5 text-[var(--faint)]">
+                {c.comment ?? <span className="text-[var(--null)]">—</span>}
+              </td>
               <td className="px-3 py-1.5 text-[var(--cyan)]">{c.data_type}</td>
               <td className="px-3 py-1.5">
                 {c.not_null ? (

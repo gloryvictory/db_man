@@ -6,6 +6,7 @@ import { currentUser } from './auth';
 
 export interface ColumnMeta {
   name: string;
+  comment: string | null;
   data_type: string;
   not_null: boolean;
   default_value: string | null;
@@ -144,6 +145,7 @@ export async function getColumns(connId: string, db: string, schema: string, tab
     pool,
     { connId, db },
     `SELECT a.attname AS name,
+            col_description(a.attrelid, a.attnum) AS comment,
             format_type(a.atttypid, a.atttypmod) AS data_type,
             a.attnotnull AS not_null,
             pg_get_expr(d.adbin, d.adrelid) AS default_value,
@@ -193,6 +195,7 @@ export async function getColumns(connId: string, db: string, schema: string, tab
 
   return base.rows.map((r) => ({
     name: r.name,
+    comment: sanitize(r.comment) as string | null,
     data_type: r.data_type,
     not_null: r.not_null,
     default_value: r.default_value,
