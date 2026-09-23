@@ -33,7 +33,7 @@ interface DbManState {
   view: ViewKind;
   dbView: 'info' | 'service';
   schemaView: 'info' | 'service' | 'analysis';
-  connView: 'info' | 'analysis';
+  connView: 'info' | 'analysis' | 'config';
   selectedConn: boolean;
   columns: ColumnMeta[];
   rows: unknown[][];
@@ -67,7 +67,7 @@ interface DbManState {
   setView: (v: ViewKind) => void;
   setDbView: (v: 'info' | 'service') => void;
   setSchemaView: (v: 'info' | 'service' | 'analysis') => void;
-  setConnView: (v: 'info' | 'analysis') => void;
+  setConnView: (v: 'info' | 'analysis' | 'config') => void;
   selectConnection: () => void;
   setPage: (p: number) => void;
   setPageSize: (n: number) => void;

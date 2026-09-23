@@ -3,10 +3,10 @@ import toast from 'react-hot-toast';
 import { RefreshCw, Download } from 'lucide-react';
 import { useStore } from '../store';
 import { api } from '../api';
-import { Button, Loader, Tabs, Info } from './ui';
+import { Button, Loader, Tabs, Info, Input } from './ui';
 import { formatBytes, formatDateRel } from '../lib/format';
 import { exportToExcel, exportToCsv } from '../lib/export';
-import type { ConnectionInfo, ConnectionAnalysisRow } from '../types';
+import type { ConnectionInfo, ConnectionAnalysisRow, ServerConfigRow } from '../types';
 
 const ANALYSIS_HEADER = [
   'База',
@@ -29,6 +29,9 @@ export default function ConnectionView() {
   const [analysis, setAnalysis] = useState<ConnectionAnalysisRow[] | null>(null);
   const [infoLoading, setInfoLoading] = useState(false);
   const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [configRows, setConfigRows] = useState<ServerConfigRow[] | null>(null);
+  const [configLoading, setConfigLoading] = useState(false);
+  const [configSearch, setConfigSearch] = useState('');
 
   const id = store.activeConnId;
   const conn = store.connections.find((c) => c.id === id);
@@ -81,6 +84,22 @@ export default function ConnectionView() {
     if (store.connView === 'analysis') loadAnalysis();
   }, [store.connView, loadAnalysis]);
 
+  const loadConfig = useCallback(async () => {
+    if (!id || configRows) return;
+    setConfigLoading(true);
+    try {
+      setConfigRows(await api.connectionConfig(id));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Ошибка');
+    } finally {
+      setConfigLoading(false);
+    }
+  }, [id, configRows]);
+
+  useEffect(() => {
+    if (store.connView === 'config') loadConfig();
+  }, [store.connView, loadConfig]);
+
   if (!id) return null;
 
   const title = conn ? `${conn.name} · ${conn.host}:${conn.port}` : id;
@@ -111,6 +130,13 @@ export default function ConnectionView() {
     formatBytes(d.size_bytes),
   ]);
 
+  const filteredConfig = (configRows ?? []).filter(
+    (c) =>
+      !configSearch ||
+      c.name.toLowerCase().includes(configSearch.toLowerCase()) ||
+      c.value.toLowerCase().includes(configSearch.toLowerCase())
+  );
+
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-[var(--bg)]">
       <div className="border-b border-[var(--border)] px-4 py-3">
@@ -121,16 +147,17 @@ export default function ConnectionView() {
         <div className="mt-3">
           <Tabs
             value={store.connView}
-            onChange={(v) => store.setConnView(v as 'info' | 'analysis')}
+            onChange={(v) => store.setConnView(v as 'info' | 'analysis' | 'config')}
             items={[
               { value: 'info', label: 'Информация' },
               { value: 'analysis', label: 'Анализ' },
+              { value: 'config', label: 'Конфигурация' },
             ]}
           />
         </div>
       </div>
 
-      {infoLoading && !info ? (
+      {infoLoading && !info && store.connView === 'info' ? (
         <div className="grid min-h-0 flex-1 place-items-center">
           <Loader />
         </div>
@@ -208,7 +235,7 @@ export default function ConnectionView() {
             ) : (
               <div className="text-[12px] text-[var(--null)]">Нет данных</div>
             )
-          ) : (
+          ) : store.connView === 'analysis' ? (
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
                 <Button onClick={refresh}>
@@ -275,6 +302,68 @@ export default function ConnectionView() {
                         <tr>
                           <td colSpan={10} className="px-3 py-3 text-center text-[var(--null)]">
                             Нет данных
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <Input
+                  className="max-w-[300px]"
+                  placeholder="Поиск параметра…"
+                  value={configSearch}
+                  onChange={(e) => setConfigSearch(e.target.value)}
+                />
+                <span className="font-mono text-[11px] text-[var(--faint)]">
+                  {filteredConfig.length} / {configRows?.length ?? 0}
+                </span>
+                <div className="flex-1" />
+                <Button
+                  size="xs"
+                  variant="subtle"
+                  onClick={() => exportToCsv('server_config', ['Параметр', 'Значение'], filteredConfig.map((c) => [c.name, c.value]))}
+                >
+                  <Download size={12} />
+                  CSV
+                </Button>
+                <Button
+                  size="xs"
+                  variant="subtle"
+                  onClick={() => exportToExcel('server_config', ['Параметр', 'Значение'], filteredConfig.map((c) => [c.name, c.value]))}
+                >
+                  <Download size={12} />
+                  Excel
+                </Button>
+              </div>
+              {configLoading ? (
+                <div className="grid h-40 place-items-center">
+                  <Loader />
+                </div>
+              ) : (
+                <div className="overflow-hidden rounded-lg border border-[var(--border)]">
+                  <table className="w-full border-collapse font-mono text-[12px]">
+                    <thead>
+                      <tr className="bg-[var(--surface)] text-left">
+                        <th className="border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)]">Параметр</th>
+                        <th className="border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)]">Значение</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredConfig.map((c) => (
+                        <tr key={c.name} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)]">
+                          <td className="px-3 py-1.5 text-[var(--text)]">{c.name}</td>
+                          <td className="px-3 py-1.5 text-[var(--cyan)]">{c.value}</td>
+                        </tr>
+                      ))}
+                      {filteredConfig.length === 0 && (
+                        <tr>
+                          <td colSpan={2} className="px-3 py-3 text-center text-[var(--null)]">
+                            Ничего не найдено
                           </td>
                         </tr>
                       )}

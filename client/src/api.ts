@@ -104,6 +104,7 @@ export const api = {
     http<DatabaseInfo>(`/connections/${id}/databases/${enc(db)}/info`),
   connectionInfo: (id: string) => http<ConnectionInfo>(`/connections/${id}/info`),
   connectionAnalysis: (id: string) => http<ConnectionAnalysisRow[]>(`/connections/${id}/analysis`),
+  connectionConfig: (id: string) => http<ServerConfigRow[]>(`/connections/${id}/config`),
   databaseStats: (id: string, db: string) =>
     http<DatabaseStats | null>(`/connections/${id}/databases/${enc(db)}/service`),
   dbVacuum: (id: string, db: string) =>

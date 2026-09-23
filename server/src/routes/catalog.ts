@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getConnection } from '../sqlite';
-import { listDatabases, listSchemas, listTables, getColumns, getStats, getOverview, searchObjects, getConnectionInfo, getConnectionAnalysis } from '../db';
+import { listDatabases, listSchemas, listTables, getColumns, getStats, getOverview, searchObjects, getConnectionInfo, getConnectionAnalysis, getServerConfig } from '../db';
 
 const r = Router();
 
@@ -15,6 +15,16 @@ r.get('/:connId/info', async (req, res, next) => {
 r.get('/:connId/analysis', async (req, res, next) => {
   try {
     res.json(await getConnectionAnalysis(req.params.connId));
+  } catch (e) {
+    next(e);
+  }
+});
+
+r.get('/:connId/config', async (req, res, next) => {
+  try {
+    const conn = getConnection(req.params.connId);
+    if (!conn) return res.status(404).json({ error: 'Подключение не найдено' });
+    res.json(await getServerConfig(req.params.connId, conn.database));
   } catch (e) {
     next(e);
   }
