@@ -577,6 +577,11 @@ export function setMaintenanceJobRun(id: string, last_run_at: string, next_run_a
   db.prepare('UPDATE maintenance_jobs SET last_run_at = ?, next_run_at = ? WHERE id = ?').run(last_run_at, next_run_at, id);
 }
 
+/** Обновить только last_run_at (ручной запуск не сдвигает расписание). */
+export function setMaintenanceJobLastRun(id: string, last_run_at: string): void {
+  db.prepare('UPDATE maintenance_jobs SET last_run_at = ? WHERE id = ?').run(last_run_at, id);
+}
+
 /** Задания, готовые к запуску (enabled и next_run_at <= now или ещё не запускались). */
 export function getDueJobs(nowIso: string): MaintenanceJob[] {
   const rows = db.prepare(

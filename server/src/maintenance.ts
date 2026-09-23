@@ -5,6 +5,7 @@ import {
   getDueJobs,
   logMaintenanceRun,
   setMaintenanceJobRun,
+  setMaintenanceJobLastRun,
   type MaintenanceJob,
   type MaintenanceRun,
 } from './sqlite';
@@ -112,6 +113,9 @@ export async function runMaintenanceJob(
     if (opts.advance) {
       const next = computeNextRun(job.schedule_type, job.schedule_value, new Date());
       setMaintenanceJobRun(job.id, finishedIso, next.toISOString());
+    } else {
+      // ручной запуск: фиксируем последний запуск, но не сдвигаем расписание
+      setMaintenanceJobLastRun(job.id, finishedIso);
     }
     return { status: res.status, error: res.error };
   } finally {
