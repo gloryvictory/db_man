@@ -33,6 +33,8 @@ interface DbManState {
   view: ViewKind;
   dbView: 'info' | 'service';
   schemaView: 'info' | 'service' | 'analysis';
+  connView: 'info' | 'analysis';
+  selectedConn: boolean;
   columns: ColumnMeta[];
   rows: unknown[][];
   total: number;
@@ -65,6 +67,8 @@ interface DbManState {
   setView: (v: ViewKind) => void;
   setDbView: (v: 'info' | 'service') => void;
   setSchemaView: (v: 'info' | 'service' | 'analysis') => void;
+  setConnView: (v: 'info' | 'analysis') => void;
+  selectConnection: () => void;
   setPage: (p: number) => void;
   setPageSize: (n: number) => void;
   setSort: (col: string) => void;
@@ -87,6 +91,8 @@ export const useStore = create<DbManState>((set, get) => ({
   view: 'data',
   dbView: 'info',
   schemaView: 'info',
+  connView: 'info',
+  selectedConn: false,
   columns: [],
   rows: [],
   total: 0,
@@ -102,13 +108,13 @@ export const useStore = create<DbManState>((set, get) => ({
   },
 
   setActiveConn: (id) =>
-    set({ activeConnId: id, selected: null, selectedDb: null, selectedSchema: null, columns: [], rows: [], total: 0 }),
+    set({ activeConnId: id, selected: null, selectedDb: null, selectedSchema: null, selectedConn: false, columns: [], rows: [], total: 0 }),
 
   connect: async (id, password) => {
     set({ connecting: true });
     try {
       await api.connect(id, password);
-      set({ connected: true, connecting: false });
+      set({ connected: true, connecting: false, selectedConn: true });
       localStorage.setItem('dbman-last-conn', id);
       const conn = get().connections.find((c) => c.id === id);
       await get().loadChildren({
@@ -129,7 +135,7 @@ export const useStore = create<DbManState>((set, get) => ({
     const id = get().activeConnId;
     if (!id) return;
     await api.disconnect(id);
-    set({ connected: false, children: {}, expanded: {}, selected: null, columns: [], rows: [], total: 0 });
+    set({ connected: false, children: {}, expanded: {}, selected: null, selectedDb: null, selectedSchema: null, selectedConn: false, columns: [], rows: [], total: 0 });
   },
 
   addConnection: async (data) => {
@@ -229,6 +235,7 @@ export const useStore = create<DbManState>((set, get) => ({
       selected: { db, schema, table },
       selectedDb: null,
       selectedSchema: null,
+      selectedConn: false,
       view: 'data',
       page: 0,
       sort: null,
@@ -250,10 +257,13 @@ export const useStore = create<DbManState>((set, get) => ({
   setView: (v) => set({ view: v }),
   setDbView: (v) => set({ dbView: v }),
   setSchemaView: (v) => set({ schemaView: v }),
+  setConnView: (v) => set({ connView: v }),
+  selectConnection: () =>
+    set({ selectedConn: true, selected: null, selectedDb: null, selectedSchema: null, columns: [], rows: [], total: 0 }),
   selectDatabase: (db) =>
-    set({ selectedDb: db, selected: null, selectedSchema: null, columns: [], rows: [], total: 0, dbView: 'info' }),
+    set({ selectedDb: db, selected: null, selectedSchema: null, selectedConn: false, columns: [], rows: [], total: 0, dbView: 'info' }),
   selectSchema: (db, schema) =>
-    set({ selectedSchema: { db, schema }, selected: null, selectedDb: null, columns: [], rows: [], total: 0, schemaView: 'info' }),
+    set({ selectedSchema: { db, schema }, selected: null, selectedDb: null, selectedConn: false, columns: [], rows: [], total: 0, schemaView: 'info' }),
   setPage: (p) => set({ page: p }),
   setPageSize: (n) => set({ pageSize: n, page: 0 }),
   setSort: (col) =>
@@ -297,6 +307,8 @@ export const useStore = create<DbManState>((set, get) => ({
       selected: null,
       selectedDb: null,
       selectedSchema: null,
+      selectedConn: false,
+      connView: 'info',
       columns: [],
       rows: [],
       total: 0,

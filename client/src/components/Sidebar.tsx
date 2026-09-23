@@ -38,6 +38,7 @@ function NodeRow({
       store.selected?.schema === node.schema &&
       store.selected?.db === node.db) ||
     (node.kind === 'db' && store.selectedDb === node.db) ||
+    (node.kind === 'conn' && store.selectedConn) ||
     (node.kind === 'schema' &&
       store.selectedSchema?.schema === node.schema &&
       store.selectedSchema?.db === node.db);
@@ -57,7 +58,10 @@ function NodeRow({
           } else if (node.kind === 'schema') {
             store.toggleNode(node);
             store.selectSchema(node.db!, node.schema!);
-          } else store.toggleNode(node);
+          } else {
+            store.toggleNode(node);
+            store.selectConnection();
+          }
         }}
         onContextMenu={
           node.kind === 'db' && onDbContextMenu

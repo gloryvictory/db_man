@@ -1339,6 +1339,134 @@ export async function getDatabaseAnalysis(connId: string, db: string): Promise<D
   });
 }
 
+// ---------- уровень подключения ----------
+
+export interface ConnectionDbRow {
+  name: string;
+  owner: string;
+  size_bytes: number;
+  encoding: string;
+  connection_limit: number;
+  allow_conn: boolean;
+}
+
+export interface ConnectionInfo {
+  server_version: string;
+  server_start: string | null;
+  db_count: number;
+  total_size_bytes: number;
+  active_connections: number;
+  databases: ConnectionDbRow[];
+}
+
+export async function getConnectionInfo(connId: string): Promise<ConnectionInfo> {
+  const conn = getConnection(connId);
+  const defaultDb = conn?.database ?? 'postgres';
+  const pool = getPool(connId, defaultDb);
+  const meta = { connId, db: defaultDb };
+
+  const srv = await q(
+    pool,
+    meta,
+    `SELECT version() AS server_version,
+            pg_postmaster_start_time() AS server_start,
+            (SELECT count(*) FROM pg_stat_activity) AS active_connections`
+  );
+  const dbs = await q(
+    pool,
+    meta,
+    `SELECT d.datname AS name,
+            pg_get_userbyid(d.datdba) AS owner,
+            pg_database_size(d.oid) AS size_bytes,
+            pg_encoding_to_char(d.encoding) AS encoding,
+            d.datconnlimit AS connection_limit,
+            d.datallowconn AS allow_conn
+     FROM pg_database d
+     WHERE NOT d.datistemplate
+     ORDER BY d.datname`
+  );
+
+  const s = srv.rows[0] as Record<string, unknown>;
+  const databases = (dbs.rows as Record<string, unknown>[]).map((r) => ({
+    name: String(r.name),
+    owner: String(r.owner),
+    size_bytes: Number(r.size_bytes),
+    encoding: String(r.encoding),
+    connection_limit: Number(r.connection_limit),
+    allow_conn: Boolean(r.allow_conn),
+  }));
+
+  return {
+    server_version: String(s.server_version),
+    server_start: sanitize(s.server_start) as string | null,
+    db_count: databases.length,
+    total_size_bytes: databases.reduce((acc, r) => acc + r.size_bytes, 0),
+    active_connections: Number(s.active_connections),
+    databases,
+  };
+}
+
+export interface ConnectionAnalysisRow {
+  database: string;
+  size_bytes: number;
+  table_count: number;
+  schema_count: number;
+  row_estimate: number;
+  dead_tuples: number;
+  dead_ratio: number;
+  needs_analyze: number;
+  last_vacuum: string | null;
+  last_analyze: string | null;
+}
+
+export async function getConnectionAnalysis(connId: string): Promise<ConnectionAnalysisRow[]> {
+  const conn = getConnection(connId);
+  const defaultDb = conn?.database ?? 'postgres';
+  const dbs = await listDatabases(connId, defaultDb);
+  const out: ConnectionAnalysisRow[] = [];
+  for (const db of dbs) {
+    try {
+      const rows = await getDatabaseAnalysis(connId, db);
+      let size = 0;
+      let tableCount = 0;
+      let rowEstimate = 0;
+      let dead = 0;
+      let needsAnalyze = 0;
+      const schemas = new Set<string>();
+      let lastVacuum: string | null = null;
+      let lastAnalyze: string | null = null;
+      for (const r of rows) {
+        schemas.add(r.schema);
+        size += r.total_size;
+        if (r.kind !== 'view') {
+          tableCount += 1;
+          rowEstimate += r.row_estimate;
+          dead += r.dead_tup;
+        }
+        if (r.needs_analyze) needsAnalyze += 1;
+        if (r.last_vacuum && (!lastVacuum || r.last_vacuum > lastVacuum)) lastVacuum = r.last_vacuum;
+        if (r.last_analyze && (!lastAnalyze || r.last_analyze > lastAnalyze)) lastAnalyze = r.last_analyze;
+      }
+      const live = rowEstimate;
+      out.push({
+        database: db,
+        size_bytes: size,
+        table_count: tableCount,
+        schema_count: schemas.size,
+        row_estimate: rowEstimate,
+        dead_tuples: dead,
+        dead_ratio: live + dead > 0 ? dead / (live + dead) : 0,
+        needs_analyze: needsAnalyze,
+        last_vacuum: lastVacuum,
+        last_analyze: lastAnalyze,
+      });
+    } catch {
+      // БД без доступа пропускаем
+    }
+  }
+  return out;
+}
+
 export interface SpatialTableRow extends DatabaseTableRow {
   geom_columns: string[];
 }

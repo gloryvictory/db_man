@@ -1,8 +1,24 @@
 import { Router } from 'express';
 import { getConnection } from '../sqlite';
-import { listDatabases, listSchemas, listTables, getColumns, getStats, getOverview, searchObjects } from '../db';
+import { listDatabases, listSchemas, listTables, getColumns, getStats, getOverview, searchObjects, getConnectionInfo, getConnectionAnalysis } from '../db';
 
 const r = Router();
+
+r.get('/:connId/info', async (req, res, next) => {
+  try {
+    res.json(await getConnectionInfo(req.params.connId));
+  } catch (e) {
+    next(e);
+  }
+});
+
+r.get('/:connId/analysis', async (req, res, next) => {
+  try {
+    res.json(await getConnectionAnalysis(req.params.connId));
+  } catch (e) {
+    next(e);
+  }
+});
 
 r.get('/:connId/databases', async (req, res, next) => {
   try {

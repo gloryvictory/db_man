@@ -147,6 +147,37 @@ export interface DatabaseInfo {
   active_connections: number;
 }
 
+export interface ConnectionDbRow {
+  name: string;
+  owner: string;
+  size_bytes: number;
+  encoding: string;
+  connection_limit: number;
+  allow_conn: boolean;
+}
+
+export interface ConnectionInfo {
+  server_version: string;
+  server_start: string | null;
+  db_count: number;
+  total_size_bytes: number;
+  active_connections: number;
+  databases: ConnectionDbRow[];
+}
+
+export interface ConnectionAnalysisRow {
+  database: string;
+  size_bytes: number;
+  table_count: number;
+  schema_count: number;
+  row_estimate: number;
+  dead_tuples: number;
+  dead_ratio: number;
+  needs_analyze: number;
+  last_vacuum: string | null;
+  last_analyze: string | null;
+}
+
 export interface DatabaseStats {
   numbackends: number;
   xact_commit: number;

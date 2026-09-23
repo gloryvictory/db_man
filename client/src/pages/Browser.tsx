@@ -7,6 +7,7 @@ import SqlView from '../components/SqlView';
 import ServiceView from '../components/ServiceView';
 import DatabaseView from '../components/DatabaseView';
 import SchemaView from '../components/SchemaView';
+import ConnectionView from '../components/ConnectionView';
 import { useStore } from '../store';
 import { api } from '../api';
 import { Button, Input, Tabs, Badge } from '../components/ui';
@@ -97,6 +98,8 @@ export default function Browser() {
           <DatabaseView key={store.selectedDb} />
         ) : store.selectedSchema && !sel ? (
           <SchemaView key={`${store.selectedSchema.db}.${store.selectedSchema.schema}`} />
+        ) : store.selectedConn && !sel ? (
+          <ConnectionView key={store.activeConnId ?? 'conn'} />
         ) : !sel ? (
           <div className="flex h-full items-center justify-center text-sm text-[var(--faint)]">
             Выберите таблицу слева

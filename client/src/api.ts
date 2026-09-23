@@ -1,4 +1,4 @@
-import type { StoredConnection, User, TableMeta, ColumnMeta, ColumnRow, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow, TablespaceRow, SessionRow, LockRow, SlowQueriesResult, QueryResult, AuditResult, LoginStats, SearchResult, DataQualityResult, MaintenanceJob, MaintenanceRun, MaintenanceRunsResult, MaintenanceStats, MaintenanceRunResult, AdminExport, AdminImportResult } from './types';
+import type { StoredConnection, User, TableMeta, ColumnMeta, ColumnRow, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow, TablespaceRow, SessionRow, LockRow, SlowQueriesResult, QueryResult, AuditResult, LoginStats, SearchResult, DataQualityResult, MaintenanceJob, MaintenanceRun, MaintenanceRunsResult, MaintenanceStats, MaintenanceRunResult, AdminExport, AdminImportResult, ConnectionInfo, ConnectionAnalysisRow } from './types';
 
 const BASE_URL = (import.meta.env.BASE_URL ?? '/').replace(/\/+$/, ''); // '' (корень) или '/db_man'
 const BASE = BASE_URL + '/api';
@@ -102,6 +102,8 @@ export const api = {
     ),
   databaseInfo: (id: string, db: string) =>
     http<DatabaseInfo>(`/connections/${id}/databases/${enc(db)}/info`),
+  connectionInfo: (id: string) => http<ConnectionInfo>(`/connections/${id}/info`),
+  connectionAnalysis: (id: string) => http<ConnectionAnalysisRow[]>(`/connections/${id}/analysis`),
   databaseStats: (id: string, db: string) =>
     http<DatabaseStats | null>(`/connections/${id}/databases/${enc(db)}/service`),
   dbVacuum: (id: string, db: string) =>
