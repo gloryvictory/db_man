@@ -2,6 +2,7 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { useStore } from '../store';
 import { Modal, Field, Input, Button } from './ui';
+import type { StoredConnection } from '../types';
 
 const empty = {
   name: '',
@@ -13,40 +14,77 @@ const empty = {
   savePassword: false,
 };
 
-export default function ConnectionModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function ConnectionModal({
+  open,
+  onClose,
+  initial = null,
+}: {
+  open: boolean;
+  onClose: () => void;
+  initial?: StoredConnection | null;
+}) {
   const store = useStore();
-  const [form, setForm] = useState(empty);
+  const isEdit = !!initial;
+  const [form, setForm] = useState(() =>
+    initial
+      ? {
+          name: initial.name,
+          host: initial.host,
+          port: initial.port,
+          database: initial.database,
+          username: initial.username,
+          password: '',
+          savePassword: initial.hasSavedPassword,
+        }
+      : empty
+  );
   const [saving, setSaving] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    const res = await store.addConnection({
-      name: form.name,
-      host: form.host,
-      port: form.port,
-      database: form.database,
-      username: form.username,
-      password: form.password || undefined,
-      savePassword: form.savePassword,
-    });
-    setSaving(false);
-
-    if (res.ok && res.connected) {
-      toast.success('Подключено');
-      onClose();
-      setForm(empty);
-    } else if (res.ok) {
-      toast.error(`Подключение не удалось: ${res.error || 'неизвестная ошибка'}`);
-      onClose();
-      setForm(empty);
-    } else {
-      toast.error(res.error || 'Ошибка сохранения');
+    try {
+      if (isEdit) {
+        await store.updateConnection(initial!.id, {
+          name: form.name,
+          host: form.host,
+          port: form.port,
+          database: form.database,
+          username: form.username,
+          password: form.password || undefined,
+          savePassword: form.savePassword,
+        });
+        toast.success('Подключение обновлено');
+        onClose();
+        return;
+      }
+      const res = await store.addConnection({
+        name: form.name,
+        host: form.host,
+        port: form.port,
+        database: form.database,
+        username: form.username,
+        password: form.password || undefined,
+        savePassword: form.savePassword,
+      });
+      if (res.ok && res.connected) {
+        toast.success('Подключено');
+        onClose();
+        setForm(empty);
+      } else if (res.ok) {
+        toast.error(`Подключение не удалось: ${res.error || 'неизвестная ошибка'}`);
+        onClose();
+        setForm(empty);
+      } else {
+        toast.error(res.error || 'Ошибка сохранения');
+      }
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Новое подключение" width={460}>
+    <Modal open={open} onClose={onClose} title={isEdit ? 'Изменить подключение' : 'Новое подключение'} width={460}>
       <form onSubmit={submit} className="flex flex-col gap-3">
         <Field label="Название">
           <Input
@@ -92,7 +130,10 @@ export default function ConnectionModal({ open, onClose }: { open: boolean; onCl
             onChange={(e) => setForm({ ...form, username: e.target.value })}
           />
         </Field>
-        <Field label="Пароль" description="По умолчанию хранится только в памяти сервера">
+        <Field
+          label={isEdit ? 'Пароль (пусто — не менять)' : 'Пароль'}
+          description={isEdit ? undefined : 'По умолчанию хранится только в памяти сервера'}
+        >
           <Input
             type="password"
             value={form.password}
@@ -109,7 +150,7 @@ export default function ConnectionModal({ open, onClose }: { open: boolean; onCl
           Сохранить пароль для автоматического подключения
         </label>
         <Button variant="primary" type="submit" disabled={saving} className="mt-1">
-          {saving ? 'Подключение…' : 'Добавить и подключить'}
+          {saving ? 'Сохранение…' : isEdit ? 'Сохранить' : 'Добавить и подключить'}
         </Button>
       </form>
     </Modal>

@@ -58,6 +58,15 @@ interface DbManState {
     savePassword?: boolean;
   }) => Promise<{ ok: boolean; connected: boolean; error?: string }>;
   removeConnection: (id: string) => Promise<void>;
+  updateConnection: (id: string, data: {
+    name?: string;
+    host?: string;
+    port?: number;
+    database?: string;
+    username?: string;
+    password?: string;
+    savePassword?: boolean;
+  }) => Promise<void>;
   renameDatabase: (oldDb: string, newName: string) => Promise<void>;
   toggleNode: (node: TreeNode) => Promise<void>;
   loadChildren: (node: TreeNode) => Promise<void>;
@@ -162,6 +171,11 @@ export const useStore = create<DbManState>((set, get) => ({
     await api.deleteConnection(id);
     if (get().activeConnId === id) set({ activeConnId: null, connected: false, selected: null });
     if (localStorage.getItem('dbman-last-conn') === id) localStorage.removeItem('dbman-last-conn');
+    await get().loadConnections();
+  },
+
+  updateConnection: async (id, data) => {
+    await api.updateConnection(id, data);
     await get().loadConnections();
   },
 
