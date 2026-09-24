@@ -63,7 +63,7 @@ export default function Topbar() {
 
   const options = store.connections.map((c) => ({
     value: c.id,
-    label: `${c.name} (${c.host}:${c.port})`,
+    label: `${c.host}@${c.username}`,
   }));
 
   async function onSelectConn(id: string | null) {

@@ -643,7 +643,7 @@ function JobFormModal({
   onClose,
   onSubmit,
 }: {
-  connections: { id: string; name: string; host: string; port: number }[];
+  connections: { id: string; name: string; host: string; port: number; username: string }[];
   initial: FormState | null;
   title: string;
   onClose: () => void;
@@ -681,7 +681,7 @@ function JobFormModal({
     };
   }, [f.connection_id]);
 
-  const connOptions = connections.map((c) => ({ value: c.id, label: `${c.name} (${c.host}:${c.port})` }));
+  const connOptions = connections.map((c) => ({ value: c.id, label: `${c.host}@${c.username}` }));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -791,7 +791,7 @@ function AutoDistributeModal({
   onClose,
   onSubmit,
 }: {
-  connections: { id: string; name: string; host: string; port: number }[];
+  connections: { id: string; name: string; host: string; port: number; username: string }[];
   onClose: () => void;
   onSubmit: (connectionId: string, jobType: string) => Promise<boolean>;
 }) {
@@ -816,7 +816,7 @@ function AutoDistributeModal({
     };
   }, [connectionId]);
 
-  const connOptions = connections.map((c) => ({ value: c.id, label: `${c.name} (${c.host}:${c.port})` }));
+  const connOptions = connections.map((c) => ({ value: c.id, label: `${c.host}@${c.username}` }));
   const offset = JOB_OFFSET_MIN[jobType] ?? 0;
   const times = databases ? distributeTimes(databases.length, offset) : [];
 
@@ -917,7 +917,7 @@ function DeleteByTypeModal({
   onClose,
   onSubmit,
 }: {
-  connections: { id: string; name: string; host: string; port: number }[];
+  connections: { id: string; name: string; host: string; port: number; username: string }[];
   onClose: () => void;
   onSubmit: (connectionId: string, jobType: string) => Promise<boolean>;
 }) {
@@ -927,7 +927,7 @@ function DeleteByTypeModal({
 
   const connOptions = [
     { value: '', label: 'Все подключения' },
-    ...connections.map((c) => ({ value: c.id, label: `${c.name} (${c.host}:${c.port})` })),
+    ...connections.map((c) => ({ value: c.id, label: `${c.host}@${c.username}` })),
   ];
 
   async function confirm() {
