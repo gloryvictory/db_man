@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Plus, Play, Trash2, Pencil, Download, RefreshCw, Power } from 'lucide-react';
+import { Plus, Play, Trash2, Pencil, Download, RefreshCw, Power, Wand2 } from 'lucide-react';
 import { api } from '../api';
 import { useStore } from '../store';
 import { Button, Loader, Tabs, Modal, Field, Input, Select, Info } from './ui';
@@ -18,6 +18,20 @@ function formatSchedule(schedule_type: string, schedule_value: string): string {
     return `еженедельно ${DAYS[Number(d) - 1] ?? d} в ${t}`;
   }
   return `каждые ${schedule_value} ч`;
+}
+
+/** Равномерно распределяет N баз по времени в окне 23:00–08:00. */
+function distributeTimes(count: number): string[] {
+  const startMin = 23 * 60; // 23:00
+  const endMin = 8 * 60 + 24 * 60; // 08:00 следующего дня
+  const total = endMin - startMin; // 540 минут
+  const step = count > 1 ? total / count : 0;
+  return Array.from({ length: count }, (_, i) => {
+    const mins = Math.round(startMin + i * step) % 1440;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  });
 }
 
 interface FormState {
@@ -70,6 +84,7 @@ export default function MaintenanceView() {
   const [runningId, setRunningId] = useState<string | null>(null);
   const [editing, setEditing] = useState<MaintenanceJob | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [autoOpen, setAutoOpen] = useState(false);
 
   const connections = store.connections;
 
@@ -173,6 +188,36 @@ export default function MaintenanceView() {
     }
   }
 
+  async function autoDistribute(connectionId: string, jobType: string): Promise<boolean> {
+    try {
+      const dbs = await api.databases(connectionId);
+      if (!dbs.length) throw new Error('Нет доступных баз данных');
+      const times = distributeTimes(dbs.length);
+      // удаляем текущие задания этого подключения
+      const existing = (jobs ?? []).filter((j) => j.connection_id === connectionId);
+      for (const j of existing) await api.deleteMaintenance(j.id);
+      // создаём новые
+      for (let i = 0; i < dbs.length; i++) {
+        await api.createMaintenance({
+          connection_id: connectionId,
+          database: dbs[i],
+          job_type: jobType,
+          schedule_type: 'daily',
+          schedule_value: times[i],
+          enabled: true,
+          catch_up: false,
+        });
+      }
+      toast.success(`Создано заданий: ${dbs.length}`);
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Ошибка');
+      return false;
+    } finally {
+      await Promise.all([loadJobs(), loadRuns(), loadStats()]);
+    }
+  }
+
   const connLabel = (id: string) => {
     const c = connections.find((x) => x.id === id);
     return c ? `${c.name} (${c.host}:${c.port})` : id;
@@ -206,10 +251,16 @@ export default function MaintenanceView() {
         </div>
         <div className="flex-1" />
         {tab === 'jobs' && (
-          <Button variant="primary" onClick={openCreate} disabled={!connections.length}>
-            <Plus size={14} />
-            Добавить задание
-          </Button>
+          <>
+            <Button variant="subtle" onClick={() => setAutoOpen(true)} disabled={!connections.length}>
+              <Wand2 size={14} />
+              Распределить автоматически
+            </Button>
+            <Button variant="primary" onClick={openCreate} disabled={!connections.length}>
+              <Plus size={14} />
+              Добавить задание
+            </Button>
+          </>
         )}
       </div>
 
@@ -418,6 +469,14 @@ export default function MaintenanceView() {
           onSubmit={submit}
         />
       )}
+
+      {autoOpen && (
+        <AutoDistributeModal
+          connections={connections}
+          onClose={() => setAutoOpen(false)}
+          onSubmit={autoDistribute}
+        />
+      )}
     </div>
   );
 }
@@ -568,6 +627,123 @@ function JobFormModal({
           {busy ? 'Сохранение…' : 'Сохранить'}
         </Button>
       </form>
+    </Modal>
+  );
+}
+
+function AutoDistributeModal({
+  connections,
+  onClose,
+  onSubmit,
+}: {
+  connections: { id: string; name: string; host: string; port: number }[];
+  onClose: () => void;
+  onSubmit: (connectionId: string, jobType: string) => Promise<boolean>;
+}) {
+  const [connectionId, setConnectionId] = useState(connections[0]?.id ?? '');
+  const [jobType, setJobType] = useState('vacuum_analyze');
+  const [databases, setDatabases] = useState<string[] | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!connectionId) {
+      setDatabases(null);
+      return;
+    }
+    let on = true;
+    setDatabases(null);
+    api
+      .databases(connectionId)
+      .then((d) => on && setDatabases(d))
+      .catch(() => on && setDatabases([]));
+    return () => {
+      on = false;
+    };
+  }, [connectionId]);
+
+  const connOptions = connections.map((c) => ({ value: c.id, label: `${c.name} (${c.host}:${c.port})` }));
+  const times = databases ? distributeTimes(databases.length) : [];
+
+  async function confirm() {
+    if (!connectionId) return;
+    setBusy(true);
+    try {
+      const ok = await onSubmit(connectionId, jobType);
+      if (ok) onClose();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal open onClose={onClose} title="Распределить автоматически" width={520}>
+      <div className="flex flex-col gap-3">
+        <div className="rounded-lg border border-[var(--red)] p-3 text-[13px] text-[var(--red)]">
+          Внимание: текущие задания для выбранного подключения будут удалены и заменены новыми.
+        </div>
+
+        <Field label="Подключение">
+          <Select
+            value={connectionId}
+            onChange={(v) => v && setConnectionId(v)}
+            options={connOptions}
+            width={440}
+            placeholder="Подключение"
+            searchable
+          />
+        </Field>
+
+        <Field label="Операция">
+          <Select
+            value={jobType}
+            onChange={(v) => v && setJobType(v)}
+            options={[
+              { value: 'vacuum', label: 'VACUUM' },
+              { value: 'analyze', label: 'ANALYZE' },
+              { value: 'vacuum_analyze', label: 'VACUUM ANALYZE' },
+              { value: 'reindex', label: 'REINDEX' },
+            ]}
+            width={440}
+          />
+        </Field>
+
+        <Field label="Период" description="Все базы распределяются равномерно">
+          <div className="text-[13px] text-[var(--text)]">ежедневно с 23:00 до 08:00</div>
+        </Field>
+
+        {databases && databases.length > 0 && (
+          <div>
+            <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+              Распределение ({databases.length} БД)
+            </div>
+            <div className="max-h-56 overflow-auto rounded-lg border border-[var(--border)]">
+              <table className="w-full border-collapse font-mono text-[12px]">
+                <tbody>
+                  {databases.map((d, i) => (
+                    <tr key={d} className="border-b border-[var(--border)] last:border-b-0">
+                      <td className="px-3 py-1 text-[var(--amber)]">{d}</td>
+                      <td className="px-3 py-1 text-right text-[var(--text)]">{times[i]}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        <div className="text-[11px] text-[var(--faint)]">
+          Для автозапуска у подключения должен быть сохранён пароль. Пропущенные запуски (сервер был недоступен ночью) не выполняются днём.
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <Button variant="subtle" onClick={onClose} disabled={busy}>
+            Отмена
+          </Button>
+          <Button variant="primary" onClick={confirm} disabled={busy || !connectionId}>
+            {busy ? 'Создание…' : 'Удалить и создать'}
+          </Button>
+        </div>
+      </div>
     </Modal>
   );
 }
