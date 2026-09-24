@@ -20,18 +20,46 @@ function formatSchedule(schedule_type: string, schedule_value: string): string {
   return `каждые ${schedule_value} ч`;
 }
 
-/** Равномерно распределяет N баз по времени в окне 23:00–08:00. */
-function distributeTimes(count: number): string[] {
-  const startMin = 23 * 60; // 23:00
-  const endMin = 8 * 60 + 24 * 60; // 08:00 следующего дня
-  const total = endMin - startMin; // 540 минут
-  const step = count > 1 ? total / count : 0;
+const WINDOW_START_MIN = 23 * 60; // 23:00
+const WINDOW_MINUTES = 540; // 23:00 → 08:00
+
+/** Равномерно распределяет N баз в окне 23:00–08:00 со сдвигом offset (минут). */
+function distributeTimes(count: number, offset = 0): string[] {
+  const step = count > 1 ? WINDOW_MINUTES / count : 0;
   return Array.from({ length: count }, (_, i) => {
-    const mins = Math.round(startMin + i * step) % 1440;
+    const total = WINDOW_START_MIN + Math.round(i * step) + offset;
+    const mins = total % 1440;
     const h = Math.floor(mins / 60);
     const m = mins % 60;
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
   });
+}
+
+/** Время «ЧЧ:ММ» → минуты от 23:00 (для сравнения порядка внутри ночного окна). */
+function toWindowMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number);
+  return (h * 60 + m - WINDOW_START_MIN + 1440) % 1440;
+}
+
+/** Сдвиг времени по операции: VACUUM → 0, ANALYZE → +30 мин, REINDEX → +60 мин. */
+const JOB_OFFSET_MIN: Record<string, number> = {
+  vacuum: 0,
+  vacuum_analyze: 0,
+  analyze: 30,
+  reindex: 60,
+};
+
+/** Какие типы заданий удалять при создании выбранной операции. */
+function deleteTypesFor(jobType: string): string[] {
+  if (jobType === 'vacuum_analyze') return ['vacuum', 'analyze'];
+  return [jobType];
+}
+
+/** Предшествующие операции, после которых должна идти выбранная. */
+function precedingTypes(jobType: string): string[] {
+  if (jobType === 'analyze') return ['vacuum', 'vacuum_analyze'];
+  if (jobType === 'reindex') return ['analyze', 'vacuum_analyze'];
+  return [];
 }
 
 interface FormState {
@@ -192,10 +220,28 @@ export default function MaintenanceView() {
     try {
       const dbs = await api.databases(connectionId);
       if (!dbs.length) throw new Error('Нет доступных баз данных');
-      const times = distributeTimes(dbs.length);
-      // удаляем текущие задания этого подключения
-      const existing = (jobs ?? []).filter((j) => j.connection_id === connectionId);
+      const offset = JOB_OFFSET_MIN[jobType] ?? 0;
+      const times = distributeTimes(dbs.length, offset);
+
+      // проверка порядка: выбранная операция должна идти после предшествующих (для каждой БД)
+      const preceding = precedingTypes(jobType);
+      if (preceding.length) {
+        const others = (jobs ?? []).filter((j) => j.connection_id === connectionId && preceding.includes(j.job_type));
+        for (const o of others) {
+          const idx = dbs.indexOf(o.database);
+          if (idx >= 0 && toWindowMinutes(o.schedule_value) >= toWindowMinutes(times[idx])) {
+            throw new Error(
+              `Нарушен порядок: ${JOB_TYPE_LABEL[o.job_type]} для «${o.database}» (${o.schedule_value}) должен быть раньше ${JOB_TYPE_LABEL[jobType]} (${times[idx]})`
+            );
+          }
+        }
+      }
+
+      // удаляем задания только этой операции (для vacuum_analyze — vacuum + analyze)
+      const delTypes = deleteTypesFor(jobType);
+      const existing = (jobs ?? []).filter((j) => j.connection_id === connectionId && delTypes.includes(j.job_type));
       for (const j of existing) await api.deleteMaintenance(j.id);
+
       // создаём новые
       for (let i = 0; i < dbs.length; i++) {
         await api.createMaintenance({
@@ -662,7 +708,8 @@ function AutoDistributeModal({
   }, [connectionId]);
 
   const connOptions = connections.map((c) => ({ value: c.id, label: `${c.name} (${c.host}:${c.port})` }));
-  const times = databases ? distributeTimes(databases.length) : [];
+  const offset = JOB_OFFSET_MIN[jobType] ?? 0;
+  const times = databases ? distributeTimes(databases.length, offset) : [];
 
   async function confirm() {
     if (!connectionId) return;
@@ -679,7 +726,10 @@ function AutoDistributeModal({
     <Modal open onClose={onClose} title="Распределить автоматически" width={520}>
       <div className="flex flex-col gap-3">
         <div className="rounded-lg border border-[var(--red)] p-3 text-[13px] text-[var(--red)]">
-          Внимание: текущие задания для выбранного подключения будут удалены и заменены новыми.
+          {jobType === 'vacuum_analyze'
+            ? 'Внимание: задания VACUUM и ANALYZE для выбранного подключения будут удалены и созданы заново.'
+            : `Внимание: задания ${JOB_TYPE_LABEL[jobType]} для выбранного подключения будут удалены и созданы заново.`}{' '}
+          Задания других операций сохраняются.
         </div>
 
         <Field label="Подключение">
@@ -709,6 +759,11 @@ function AutoDistributeModal({
 
         <Field label="Период" description="Все базы распределяются равномерно">
           <div className="text-[13px] text-[var(--text)]">ежедневно с 23:00 до 08:00</div>
+          {offset > 0 && (
+            <div className="text-[11px] text-[var(--faint)]">
+              Сдвиг +{offset} мин — {jobType === 'analyze' ? 'после VACUUM' : 'после ANALYZE'} для каждой БД.
+            </div>
+          )}
         </Field>
 
         {databases && databases.length > 0 && (
