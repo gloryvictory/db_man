@@ -96,7 +96,7 @@ export default function Topbar() {
       <div className="h-[22px] w-px bg-[var(--border)]" />
 
       <Select
-        width={360}
+        width={480}
         value={store.activeConnId}
         onChange={onSelectConn}
         options={options}
