@@ -6,6 +6,7 @@ import { api } from '../api';
 import { Button, Loader, Tabs, Info, Input } from './ui';
 import { formatBytes, formatDateRel } from '../lib/format';
 import { exportToExcel, exportToCsv } from '../lib/export';
+import SchemaCompare from './SchemaCompare';
 import type { ConnectionInfo, ConnectionAnalysisRow, ServerConfigRow } from '../types';
 
 const ANALYSIS_HEADER = [
@@ -147,11 +148,12 @@ export default function ConnectionView() {
         <div className="mt-3">
           <Tabs
             value={store.connView}
-            onChange={(v) => store.setConnView(v as 'info' | 'analysis' | 'config')}
+            onChange={(v) => store.setConnView(v as 'info' | 'analysis' | 'config' | 'compare')}
             items={[
               { value: 'info', label: 'Информация' },
               { value: 'analysis', label: 'Анализ' },
               { value: 'config', label: 'Конфигурация' },
+              { value: 'compare', label: 'Сравнение' },
             ]}
           />
         </div>
@@ -310,7 +312,7 @@ export default function ConnectionView() {
                 </div>
               )}
             </div>
-          ) : (
+          ) : store.connView === 'config' ? (
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
                 <Input
@@ -372,6 +374,8 @@ export default function ConnectionView() {
                 </div>
               )}
             </div>
+          ) : (
+            <SchemaCompare id={id} />
           )}
         </div>
       )}
