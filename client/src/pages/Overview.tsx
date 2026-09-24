@@ -24,8 +24,9 @@ export default function Overview() {
   useEffect(() => {
     if (!store.connected || !store.activeConnId) return;
     api.databases(store.activeConnId).then((list) => {
-      setDbs(list);
-      if (list.length && !db) setDb(list[0]);
+      const names = list.map((d) => d.name);
+      setDbs(names);
+      if (names.length && !db) setDb(names[0]);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.connected, store.activeConnId]);

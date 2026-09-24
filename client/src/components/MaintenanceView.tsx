@@ -223,7 +223,7 @@ export default function MaintenanceView() {
 
   async function autoDistribute(connectionId: string, jobType: string): Promise<boolean> {
     try {
-      const dbs = await api.databases(connectionId);
+      const dbs = (await api.databases(connectionId)).map((d) => d.name);
       if (!dbs.length) throw new Error('Нет доступных баз данных');
       const offset = JOB_OFFSET_MIN[jobType] ?? 0;
       const times = distributeTimes(dbs.length, offset);
@@ -674,7 +674,7 @@ function JobFormModal({
     setDatabases(null);
     api
       .databases(f.connection_id)
-      .then((d) => on && setDatabases(d))
+      .then((d) => on && setDatabases(d.map((x) => x.name)))
       .catch(() => on && setDatabases([]));
     return () => {
       on = false;
@@ -809,7 +809,7 @@ function AutoDistributeModal({
     setDatabases(null);
     api
       .databases(connectionId)
-      .then((d) => on && setDatabases(d))
+      .then((d) => on && setDatabases(d.map((x) => x.name)))
       .catch(() => on && setDatabases([]));
     return () => {
       on = false;

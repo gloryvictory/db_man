@@ -33,6 +33,17 @@ export interface TableMeta {
   name: string;
   kind: string;
   row_estimate: number;
+  comment: string | null;
+}
+
+export interface DbMeta {
+  name: string;
+  comment: string | null;
+}
+
+export interface SchemaMeta {
+  name: string;
+  comment: string | null;
 }
 
 export interface RowsResult {

@@ -13,6 +13,7 @@ export interface TreeNode {
   table?: string;
   rowEstimate?: number;
   tableKind?: string;
+  comment?: string | null;
 }
 
 export type ViewKind = 'data' | 'structure' | 'sql' | 'service';
@@ -206,16 +207,17 @@ export const useStore = create<DbManState>((set, get) => ({
       let kids: TreeNode[] = [];
       if (node.kind === 'conn') {
         const dbs = await api.databases(connId);
-        kids = dbs.map((d) => ({ id: `${connId}::${d}`, label: d, kind: 'db' as const, connId, db: d }));
+        kids = dbs.map((d) => ({ id: `${connId}::${d.name}`, label: d.name, kind: 'db' as const, connId, db: d.name, comment: d.comment }));
       } else if (node.kind === 'db' && node.db) {
         const schemas = await api.schemas(connId, node.db);
         kids = schemas.map((s) => ({
-          id: `${connId}::${node.db}::${s}`,
-          label: s,
+          id: `${connId}::${node.db}::${s.name}`,
+          label: s.name,
           kind: 'schema' as const,
           connId,
           db: node.db,
-          schema: s,
+          schema: s.name,
+          comment: s.comment,
         }));
       } else if (node.kind === 'schema' && node.db && node.schema) {
         const tables = await api.tables(connId, node.db, node.schema);
@@ -229,6 +231,7 @@ export const useStore = create<DbManState>((set, get) => ({
           table: t.name,
           rowEstimate: t.row_estimate,
           tableKind: t.kind,
+          comment: t.comment,
         }));
       }
       set((s) => ({

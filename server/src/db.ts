@@ -79,33 +79,48 @@ export function sanitize(v: unknown): unknown {
 
 // ---------- каталог ----------
 
-export async function listDatabases(connId: string, defaultDb: string): Promise<string[]> {
+export interface DbMeta {
+  name: string;
+  comment: string | null;
+}
+
+export async function listDatabases(connId: string, defaultDb: string): Promise<DbMeta[]> {
   const pool = getPool(connId, defaultDb);
   const res = await q(
     pool,
     { connId, db: defaultDb },
-    `SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname`
+    `SELECT d.datname AS name, shobj_description(d.oid, 'pg_database') AS comment
+     FROM pg_database d
+     WHERE NOT d.datistemplate
+     ORDER BY d.datname`
   );
-  return res.rows.map((r) => r.datname);
+  return res.rows.map((r) => ({ name: String(r.name), comment: sanitize(r.comment) as string | null }));
 }
 
-export async function listSchemas(connId: string, db: string): Promise<string[]> {
+export interface SchemaMeta {
+  name: string;
+  comment: string | null;
+}
+
+export async function listSchemas(connId: string, db: string): Promise<SchemaMeta[]> {
   const pool = getPool(connId, db);
   const res = await q(
     pool,
     { connId, db },
-    `SELECT nspname FROM pg_namespace
+    `SELECT nspname AS name, obj_description(oid, 'pg_namespace') AS comment
+     FROM pg_namespace
      WHERE nspname NOT IN ('pg_catalog', 'information_schema')
        AND nspname NOT LIKE 'pg\\_%' ESCAPE '\\'
      ORDER BY nspname`
   );
-  return res.rows.map((r) => r.nspname);
+  return res.rows.map((r) => ({ name: String(r.name), comment: sanitize(r.comment) as string | null }));
 }
 
 export interface TableMeta {
   name: string;
   kind: string;
   row_estimate: number;
+  comment: string | null;
 }
 
 export async function listTables(connId: string, db: string, schema: string): Promise<TableMeta[]> {
@@ -122,7 +137,8 @@ export async function listTables(connId: string, db: string, schema: string): Pr
               WHEN 'm' THEN 'materialized'
               ELSE c.relkind::text
             END AS kind,
-            GREATEST(c.reltuples::bigint, 0) AS row_estimate
+            GREATEST(c.reltuples::bigint, 0) AS row_estimate,
+            obj_description(c.oid, 'pg_class') AS comment
      FROM pg_class c
      JOIN pg_namespace n ON n.oid = c.relnamespace
      WHERE n.nspname = $1 AND c.relkind IN ('r', 'p', 'v', 'm')
@@ -130,9 +146,10 @@ export async function listTables(connId: string, db: string, schema: string): Pr
     [schema]
   );
   return res.rows.map((r) => ({
-    name: r.name,
-    kind: r.kind,
+    name: String(r.name),
+    kind: String(r.kind),
     row_estimate: Number(r.row_estimate),
+    comment: sanitize(r.comment) as string | null,
   }));
 }
 
@@ -1461,7 +1478,7 @@ export interface ConnectionAnalysisRow {
 export async function getConnectionAnalysis(connId: string): Promise<ConnectionAnalysisRow[]> {
   const conn = getConnection(connId);
   const defaultDb = conn?.database ?? 'postgres';
-  const dbs = await listDatabases(connId, defaultDb);
+  const dbs = (await listDatabases(connId, defaultDb)).map((d) => d.name);
   const out: ConnectionAnalysisRow[] = [];
   for (const db of dbs) {
     try {

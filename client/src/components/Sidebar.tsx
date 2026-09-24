@@ -50,6 +50,7 @@ function NodeRow({
           selected ? 'bg-[var(--accent-bg)] text-[var(--accent)]' : 'text-[var(--text)]'
         }`}
         style={{ paddingLeft: 6 + depth * 14 }}
+        title={node.comment ?? node.label}
         onClick={() => {
           if (node.kind === 'table') store.selectTable(node.db!, node.schema!, node.table!);
           else if (node.kind === 'db') {

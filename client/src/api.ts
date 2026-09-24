@@ -1,4 +1,4 @@
-import type { StoredConnection, User, TableMeta, ColumnMeta, ColumnRow, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow, TablespaceRow, SessionRow, LockRow, SlowQueriesResult, QueryResult, AuditResult, LoginStats, SearchResult, DataQualityResult, MaintenanceJob, MaintenanceRun, MaintenanceRunsResult, MaintenanceStats, MaintenanceRunResult, AdminExport, AdminImportResult, ConnectionInfo, ConnectionAnalysisRow } from './types';
+import type { StoredConnection, User, TableMeta, ColumnMeta, ColumnRow, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow, TablespaceRow, SessionRow, LockRow, SlowQueriesResult, QueryResult, AuditResult, LoginStats, SearchResult, DataQualityResult, MaintenanceJob, MaintenanceRun, MaintenanceRunsResult, MaintenanceStats, MaintenanceRunResult, AdminExport, AdminImportResult, ConnectionInfo, ConnectionAnalysisRow, DbMeta, SchemaMeta } from './types';
 
 const BASE_URL = (import.meta.env.BASE_URL ?? '/').replace(/\/+$/, ''); // '' (корень) или '/db_man'
 const BASE = BASE_URL + '/api';
@@ -51,8 +51,8 @@ export const api = {
       body: JSON.stringify({ password: password ?? undefined }),
     }),
   disconnect: (id: string) => http<{ ok: boolean }>(`/connections/${id}/disconnect`, { method: 'POST' }),
-  databases: (id: string) => http<string[]>(`/connections/${id}/databases`),
-  schemas: (id: string, db: string) => http<string[]>(`/connections/${id}/databases/${enc(db)}/schemas`),
+  databases: (id: string) => http<DbMeta[]>(`/connections/${id}/databases`),
+  schemas: (id: string, db: string) => http<SchemaMeta[]>(`/connections/${id}/databases/${enc(db)}/schemas`),
   tables: (id: string, db: string, schema: string) =>
     http<TableMeta[]>(`/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables`),
   columns: (id: string, db: string, schema: string, table: string) =>
