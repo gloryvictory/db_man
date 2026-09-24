@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Plus, Play, Trash2, Pencil, Download, RefreshCw, Power, Wand2 } from 'lucide-react';
 import { api } from '../api';
@@ -10,6 +10,8 @@ import type { MaintenanceJob, MaintenanceRun, MaintenanceStats } from '../types'
 
 const JOB_TYPE_LABEL: Record<string, string> = { vacuum: 'VACUUM', analyze: 'ANALYZE', vacuum_analyze: 'VACUUM ANALYZE', reindex: 'REINDEX' };
 const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+type JobSortKey = 'conn' | 'db' | 'type' | 'schedule' | 'last' | 'next';
 
 function formatSchedule(schedule_type: string, schedule_value: string): string {
   if (schedule_type === 'daily') return `ежедневно в ${schedule_value}`;
@@ -114,6 +116,8 @@ export default function MaintenanceView() {
   const [formOpen, setFormOpen] = useState(false);
   const [autoOpen, setAutoOpen] = useState(false);
   const [delTypeOpen, setDelTypeOpen] = useState(false);
+  const [jobSearch, setJobSearch] = useState('');
+  const [jobSort, setJobSort] = useState<{ key: JobSortKey; dir: 'asc' | 'desc' } | null>(null);
 
   const connections = store.connections;
 
@@ -285,6 +289,57 @@ export default function MaintenanceView() {
     return c ? `${c.name} (${c.host}:${c.port})` : id;
   };
 
+  function jobSortValue(j: MaintenanceJob, key: JobSortKey): string {
+    switch (key) {
+      case 'conn':
+        return connLabel(j.connection_id);
+      case 'db':
+        return j.database;
+      case 'type':
+        return JOB_TYPE_LABEL[j.job_type] ?? j.job_type;
+      case 'schedule':
+        return j.schedule_value;
+      case 'last':
+        return j.last_run_at ?? '';
+      case 'next':
+        return j.next_run_at ?? '';
+    }
+  }
+
+  function toggleSort(key: JobSortKey) {
+    setJobSort((s) => {
+      if (s?.key === key) return s.dir === 'asc' ? { key, dir: 'desc' } : null;
+      return { key, dir: 'asc' };
+    });
+  }
+
+  const sortArrow = (key: JobSortKey) => (jobSort?.key === key ? (jobSort.dir === 'asc' ? ' ↑' : ' ↓') : '');
+
+  const filteredJobs = useMemo(() => {
+    const q = jobSearch.trim().toLowerCase();
+    let list = jobs ?? [];
+    if (q) {
+      list = list.filter((j) =>
+        [j.database, JOB_TYPE_LABEL[j.job_type] ?? j.job_type, connLabel(j.connection_id), formatSchedule(j.schedule_type, j.schedule_value)]
+          .join(' ')
+          .toLowerCase()
+          .includes(q)
+      );
+    }
+    if (jobSort) {
+      const { key, dir } = jobSort;
+      list = [...list].sort((a, b) => {
+        const va = jobSortValue(a, key);
+        const vb = jobSortValue(b, key);
+        if (va < vb) return dir === 'asc' ? -1 : 1;
+        if (va > vb) return dir === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return list;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobs, jobSearch, jobSort, connections]);
+
   const statsHeader = ['База данных', 'Операция', 'Запусков', 'Успешно', 'Ошибок', 'Последний запуск', 'Средняя длительность, мс'];
   const statsRows = (stats?.byJob ?? []).map((s) => [
     s.database,
@@ -333,7 +388,20 @@ export default function MaintenanceView() {
       {!connections.length ? (
         <div className="text-sm text-[var(--faint)]">Сначала добавьте подключение.</div>
       ) : tab === 'jobs' ? (
-        <div className="overflow-x-auto rounded-lg border border-[var(--border)]">
+        <div>
+          <div className="mb-3 flex items-center gap-2">
+            <Input
+              className="max-w-[320px]"
+              placeholder="Поиск по БД, операции, подключению…"
+              value={jobSearch}
+              onChange={(e) => setJobSearch(e.target.value)}
+            />
+            <span className="font-mono text-[11px] text-[var(--faint)]">
+              {filteredJobs.length}
+              {jobSearch ? ` / ${jobs?.length ?? 0}` : ''}
+            </span>
+          </div>
+          <div className="overflow-x-auto rounded-lg border border-[var(--border)]">
           {jobs === null ? (
             <div className="grid place-items-center py-16">
               <Loader />
@@ -342,24 +410,36 @@ export default function MaintenanceView() {
             <table className="w-full border-collapse font-mono text-[12px]">
               <thead>
                 <tr className="bg-[var(--surface)] text-left">
-                  <th className="border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)]">Подключение</th>
-                  <th className="border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)]">База</th>
-                  <th className="border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)]">Операция</th>
-                  <th className="border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)]">Расписание</th>
-                  <th className="border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)]">Последний запуск</th>
-                  <th className="border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)]">Следующий</th>
+                  <th className="cursor-pointer select-none border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)] hover:text-[var(--text)]" onClick={() => toggleSort('conn')}>
+                    Подключение{sortArrow('conn')}
+                  </th>
+                  <th className="cursor-pointer select-none border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)] hover:text-[var(--text)]" onClick={() => toggleSort('db')}>
+                    База{sortArrow('db')}
+                  </th>
+                  <th className="cursor-pointer select-none border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)] hover:text-[var(--text)]" onClick={() => toggleSort('type')}>
+                    Операция{sortArrow('type')}
+                  </th>
+                  <th className="cursor-pointer select-none border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)] hover:text-[var(--text)]" onClick={() => toggleSort('schedule')}>
+                    Расписание{sortArrow('schedule')}
+                  </th>
+                  <th className="cursor-pointer select-none border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)] hover:text-[var(--text)]" onClick={() => toggleSort('last')}>
+                    Последний запуск{sortArrow('last')}
+                  </th>
+                  <th className="cursor-pointer select-none border-b border-[var(--border-strong)] px-3 py-2 font-medium text-[var(--muted)] hover:text-[var(--text)]" onClick={() => toggleSort('next')}>
+                    Следующий{sortArrow('next')}
+                  </th>
                   <th className="border-b border-[var(--border-strong)] px-3 py-2 text-right font-medium text-[var(--muted)]">Действия</th>
                 </tr>
               </thead>
               <tbody>
-                {jobs.length === 0 ? (
+                {filteredJobs.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-3 py-6 text-center text-[var(--null)]">
-                      Заданий нет
+                      {jobs?.length ? 'Ничего не найдено' : 'Заданий нет'}
                     </td>
                   </tr>
                 ) : (
-                  jobs.map((j) => (
+                  filteredJobs.map((j) => (
                     <tr key={j.id} className={`border-b border-[var(--border)] hover:bg-[var(--surface-hover)] ${j.enabled ? '' : 'opacity-50'}`}>
                       <td className="px-3 py-1.5 text-[var(--text)]">{connLabel(j.connection_id)}</td>
                       <td className="px-3 py-1.5 text-[var(--amber)]">{j.database}</td>
@@ -387,6 +467,7 @@ export default function MaintenanceView() {
               </tbody>
             </table>
           )}
+          </div>
         </div>
       ) : tab === 'history' ? (
         <div>
