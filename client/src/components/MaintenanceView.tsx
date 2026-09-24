@@ -113,6 +113,7 @@ export default function MaintenanceView() {
   const [editing, setEditing] = useState<MaintenanceJob | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [autoOpen, setAutoOpen] = useState(false);
+  const [delTypeOpen, setDelTypeOpen] = useState(false);
 
   const connections = store.connections;
 
@@ -264,6 +265,21 @@ export default function MaintenanceView() {
     }
   }
 
+  async function deleteByType(connectionId: string, jobType: string): Promise<boolean> {
+    try {
+      const targets = (jobs ?? []).filter((j) => j.job_type === jobType && (!connectionId || j.connection_id === connectionId));
+      if (!targets.length) throw new Error('Нет заданий для удаления');
+      for (const j of targets) await api.deleteMaintenance(j.id);
+      toast.success(`Удалено заданий: ${targets.length}`);
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Ошибка');
+      return false;
+    } finally {
+      await Promise.all([loadJobs(), loadRuns(), loadStats()]);
+    }
+  }
+
   const connLabel = (id: string) => {
     const c = connections.find((x) => x.id === id);
     return c ? `${c.name} (${c.host}:${c.port})` : id;
@@ -301,6 +317,10 @@ export default function MaintenanceView() {
             <Button variant="subtle" onClick={() => setAutoOpen(true)} disabled={!connections.length}>
               <Wand2 size={14} />
               Распределить автоматически
+            </Button>
+            <Button variant="subtle" onClick={() => setDelTypeOpen(true)} disabled={!jobs?.length}>
+              <Trash2 size={14} style={{ color: 'var(--red)' }} />
+              Удалить по типу
             </Button>
             <Button variant="primary" onClick={openCreate} disabled={!connections.length}>
               <Plus size={14} />
@@ -521,6 +541,14 @@ export default function MaintenanceView() {
           connections={connections}
           onClose={() => setAutoOpen(false)}
           onSubmit={autoDistribute}
+        />
+      )}
+
+      {delTypeOpen && (
+        <DeleteByTypeModal
+          connections={connections}
+          onClose={() => setDelTypeOpen(false)}
+          onSubmit={deleteByType}
         />
       )}
     </div>
@@ -796,6 +824,72 @@ function AutoDistributeModal({
           </Button>
           <Button variant="primary" onClick={confirm} disabled={busy || !connectionId}>
             {busy ? 'Создание…' : 'Удалить и создать'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function DeleteByTypeModal({
+  connections,
+  onClose,
+  onSubmit,
+}: {
+  connections: { id: string; name: string; host: string; port: number }[];
+  onClose: () => void;
+  onSubmit: (connectionId: string, jobType: string) => Promise<boolean>;
+}) {
+  const [jobType, setJobType] = useState('vacuum');
+  const [connectionId, setConnectionId] = useState(''); // '' = все подключения
+  const [busy, setBusy] = useState(false);
+
+  const connOptions = [
+    { value: '', label: 'Все подключения' },
+    ...connections.map((c) => ({ value: c.id, label: `${c.name} (${c.host}:${c.port})` })),
+  ];
+
+  async function confirm() {
+    setBusy(true);
+    try {
+      const ok = await onSubmit(connectionId, jobType);
+      if (ok) onClose();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal open onClose={onClose} title="Удалить задания по типу" width={460}>
+      <div className="flex flex-col gap-3">
+        <div className="rounded-lg border border-[var(--red)] p-3 text-[13px] text-[var(--red)]">
+          Внимание: будут удалены все задания выбранной операции (вместе с историей).
+        </div>
+
+        <Field label="Операция">
+          <Select
+            value={jobType}
+            onChange={(v) => v && setJobType(v)}
+            options={[
+              { value: 'vacuum', label: 'VACUUM' },
+              { value: 'analyze', label: 'ANALYZE' },
+              { value: 'vacuum_analyze', label: 'VACUUM ANALYZE' },
+              { value: 'reindex', label: 'REINDEX' },
+            ]}
+            width={400}
+          />
+        </Field>
+
+        <Field label="Подключение" description="«Все подключения» — удалить везде">
+          <Select value={connectionId} onChange={(v) => setConnectionId(v ?? '')} options={connOptions} width={400} />
+        </Field>
+
+        <div className="flex justify-end gap-2">
+          <Button variant="subtle" onClick={onClose} disabled={busy}>
+            Отмена
+          </Button>
+          <Button variant="primary" onClick={confirm} disabled={busy} style={{ background: 'var(--red)', borderColor: 'var(--red)' }}>
+            {busy ? 'Удаление…' : 'Удалить'}
           </Button>
         </div>
       </div>
