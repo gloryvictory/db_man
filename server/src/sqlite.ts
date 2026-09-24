@@ -68,7 +68,10 @@ export function verifyPassword(password: string, stored: string): boolean {
 
 export function initDb(dbPath: string): DatabaseSync {
   if (dbPath !== ':memory:') {
-    fs.mkdirSync(path.dirname(path.resolve(dbPath)), { recursive: true });
+    const abs = path.resolve(dbPath);
+    const existed = fs.existsSync(abs);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    console.log(`[sqlite] ${existed ? 'найдена существующая БД' : 'БД не найдена — создаю новую'}: ${abs}`);
   }
   db = new DatabaseSync(dbPath);
   db.exec(`

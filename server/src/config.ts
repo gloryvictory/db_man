@@ -31,9 +31,16 @@ function loadFileConfig(): AppConfig {
 
 const fileCfg = loadFileConfig();
 
+function resolveSqlitePath(p: string): string {
+  if (p === ':memory:' || path.isAbsolute(p)) return p;
+  // относительный путь — от папки сервера (server/), а не от текущей рабочей директории
+  const serverDir = path.resolve(__dirname, '..'); // server/src → server/, server/dist → server/
+  return path.resolve(serverDir, p);
+}
+
 export const config = {
   // переменные окружения (server/.env) имеют приоритет над config.json
   host: process.env.HOST || fileCfg.server.host,
   port: parseInt(process.env.PORT || String(fileCfg.server.port), 10),
-  sqlitePath: process.env.SQLITE_PATH || fileCfg.server.sqlitePath,
+  sqlitePath: resolveSqlitePath(process.env.SQLITE_PATH || fileCfg.server.sqlitePath),
 };
