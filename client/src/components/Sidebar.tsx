@@ -150,7 +150,7 @@ export default function Sidebar({ width }: { width: number }) {
             <NodeRow
               node={{
                 id: conn.id,
-                label: `${conn.name} · ${conn.host}:${conn.port}`,
+                label: `${conn.host}@${conn.username}`,
                 kind: 'conn',
                 connId: conn.id,
               }}
