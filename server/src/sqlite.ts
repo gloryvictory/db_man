@@ -484,7 +484,7 @@ export interface MaintenanceJob {
   id: string;
   connection_id: string;
   database: string;
-  job_type: 'vacuum' | 'analyze' | 'vacuum_analyze' | 'reindex';
+  job_type: 'vacuum' | 'analyze' | 'vacuum_analyze' | 'vacuum_full' | 'reindex';
   schedule_type: 'daily' | 'weekly' | 'hours';
   schedule_value: string;
   enabled: boolean;

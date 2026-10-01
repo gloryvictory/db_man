@@ -874,6 +874,11 @@ export async function vacuumDatabase(connId: string, db: string): Promise<void> 
   await q(pool, { connId, db }, 'VACUUM');
 }
 
+export async function vacuumFullDatabase(connId: string, db: string): Promise<void> {
+  const pool = getPool(connId, db);
+  await q(pool, { connId, db }, 'VACUUM (FULL)');
+}
+
 export async function analyzeDatabase(connId: string, db: string): Promise<void> {
   const pool = getPool(connId, db);
   await q(pool, { connId, db }, 'ANALYZE');

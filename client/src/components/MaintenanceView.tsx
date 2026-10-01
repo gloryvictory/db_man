@@ -9,7 +9,7 @@ import { formatDateRel } from '../lib/format';
 import MaintenanceCharts from './MaintenanceCharts';
 import type { MaintenanceJob, MaintenanceRun, MaintenanceStats } from '../types';
 
-const JOB_TYPE_LABEL: Record<string, string> = { vacuum: 'VACUUM', analyze: 'ANALYZE', vacuum_analyze: 'VACUUM ANALYZE', reindex: 'REINDEX' };
+const JOB_TYPE_LABEL: Record<string, string> = { vacuum: 'VACUUM', analyze: 'ANALYZE', vacuum_analyze: 'VACUUM ANALYZE', vacuum_full: 'VACUUM FULL', reindex: 'REINDEX' };
 const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
 type JobSortKey = 'conn' | 'db' | 'type' | 'schedule' | 'last' | 'next';
@@ -48,6 +48,7 @@ function toWindowMinutes(hhmm: string): number {
 const JOB_OFFSET_MIN: Record<string, number> = {
   vacuum: 0,
   vacuum_analyze: 0,
+  vacuum_full: 0,
   analyze: 30,
   reindex: 60,
 };
@@ -729,6 +730,7 @@ function JobFormModal({
               { value: 'analyze', label: 'ANALYZE' },
               { value: 'vacuum_analyze', label: 'VACUUM ANALYZE' },
               { value: 'reindex', label: 'REINDEX' },
+              { value: 'vacuum_full', label: 'VACUUM FULL' },
             ]}
             width={380}
           />
@@ -865,6 +867,7 @@ function AutoDistributeModal({
               { value: 'analyze', label: 'ANALYZE' },
               { value: 'vacuum_analyze', label: 'VACUUM ANALYZE' },
               { value: 'reindex', label: 'REINDEX' },
+              { value: 'vacuum_full', label: 'VACUUM FULL' },
             ]}
             width={440}
           />
@@ -960,6 +963,7 @@ function DeleteByTypeModal({
               { value: 'analyze', label: 'ANALYZE' },
               { value: 'vacuum_analyze', label: 'VACUUM ANALYZE' },
               { value: 'reindex', label: 'REINDEX' },
+              { value: 'vacuum_full', label: 'VACUUM FULL' },
             ]}
             width={400}
           />
