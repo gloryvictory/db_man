@@ -6,6 +6,7 @@ import { useStore } from '../store';
 import { Button, Loader, Tabs, Modal, Field, Input, Select, Info } from './ui';
 import { exportToExcel, exportToCsv } from '../lib/export';
 import { formatDateRel } from '../lib/format';
+import MaintenanceCharts from './MaintenanceCharts';
 import type { MaintenanceJob, MaintenanceRun, MaintenanceStats } from '../types';
 
 const JOB_TYPE_LABEL: Record<string, string> = { vacuum: 'VACUUM', analyze: 'ANALYZE', vacuum_analyze: 'VACUUM ANALYZE', reindex: 'REINDEX' };
@@ -107,7 +108,7 @@ function jobToForm(j: MaintenanceJob): FormState {
 
 export default function MaintenanceView() {
   const store = useStore();
-  const [tab, setTab] = useState<'jobs' | 'history' | 'stats'>('jobs');
+  const [tab, setTab] = useState<'jobs' | 'history' | 'stats' | 'charts'>('jobs');
   const [jobs, setJobs] = useState<MaintenanceJob[] | null>(null);
   const [runs, setRuns] = useState<MaintenanceRun[] | null>(null);
   const [stats, setStats] = useState<MaintenanceStats | null>(null);
@@ -358,11 +359,12 @@ export default function MaintenanceView() {
         <div className="ml-4">
           <Tabs
             value={tab}
-            onChange={(v) => setTab(v as 'jobs' | 'history' | 'stats')}
+            onChange={(v) => setTab(v as 'jobs' | 'history' | 'stats' | 'charts')}
             items={[
               { value: 'jobs', label: 'Задания' },
               { value: 'history', label: 'История' },
               { value: 'stats', label: 'Отчёты' },
+              { value: 'charts', label: 'Графики' },
             ]}
           />
         </div>
@@ -537,6 +539,8 @@ export default function MaintenanceView() {
             )}
           </div>
         </div>
+      ) : tab === 'charts' ? (
+        <MaintenanceCharts />
       ) : (
         <div>
           <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
