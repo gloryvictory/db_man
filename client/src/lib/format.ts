@@ -21,20 +21,25 @@ function relativeLabel(s: string): string {
   if (isNaN(d.getTime())) return '';
   const now = new Date();
   const startOfDay = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
-  const days = Math.round((startOfDay(now) - startOfDay(d)) / 86400000);
-  if (days <= 0) return 'сегодня';
-  if (days === 1) return 'вчера';
-  if (days < 7) return `${days} ${plural(days, 'день', 'дня', 'дней')} назад`;
-  if (days < 30) {
-    const w = Math.floor(days / 7);
-    return `${w} ${plural(w, 'неделю', 'недели', 'недель')} назад`;
+  const days = Math.round((startOfDay(d) - startOfDay(now)) / 86400000); // >0 будущее, <0 прошлое
+
+  if (days === 0) return 'сегодня';
+
+  if (days > 0) {
+    if (days === 1) return 'завтра';
+    if (days === 2) return 'послезавтра';
+    if (days < 7) return `через ${days} ${plural(days, 'день', 'дня', 'дней')}`;
+    if (days < 30) return `через ${Math.floor(days / 7)} ${plural(Math.floor(days / 7), 'неделю', 'недели', 'недель')}`;
+    if (days < 365) return `через ${Math.floor(days / 30)} ${plural(Math.floor(days / 30), 'месяц', 'месяца', 'месяцев')}`;
+    return `через ${Math.floor(days / 365)} ${plural(Math.floor(days / 365), 'год', 'года', 'лет')}`;
   }
-  if (days < 365) {
-    const m = Math.floor(days / 30);
-    return `${m} ${plural(m, 'месяц', 'месяца', 'месяцев')} назад`;
-  }
-  const y = Math.floor(days / 365);
-  return `${y} ${plural(y, 'год', 'года', 'лет')} назад`;
+
+  const p = -days;
+  if (p === 1) return 'вчера';
+  if (p < 7) return `${p} ${plural(p, 'день', 'дня', 'дней')} назад`;
+  if (p < 30) return `${Math.floor(p / 7)} ${plural(Math.floor(p / 7), 'неделю', 'недели', 'недель')} назад`;
+  if (p < 365) return `${Math.floor(p / 30)} ${plural(Math.floor(p / 30), 'месяц', 'месяца', 'месяцев')} назад`;
+  return `${Math.floor(p / 365)} ${plural(Math.floor(p / 365), 'год', 'года', 'лет')} назад`;
 }
 
 /** Абсолютная дата + относительная метка в скобках (сегодня/вчера/N назад). */
