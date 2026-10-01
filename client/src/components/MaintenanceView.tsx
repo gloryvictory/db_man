@@ -735,6 +735,11 @@ function JobFormModal({
             width={380}
           />
         </Field>
+        {f.job_type === 'vacuum_full' && (
+          <div className="rounded-lg border border-[var(--red)] bg-[rgba(248,81,73,0.07)] p-3 text-[12.5px] leading-relaxed text-[var(--red)]">
+            <strong>VACUUM FULL</strong> берёт исключительную блокировку (ACCESS EXCLUSIVE) — таблицы БД недоступны ни на чтение, ни на запись на всё время операции. Требует свободного места на диске (≈ размер самой большой таблицы + её индексов). Не ставьте в ночное расписание — это разовая тяжёлая чистка, а не регулярное обслуживание.
+          </div>
+        )}
         <Field label="Расписание">
           <Select
             value={f.schedule_type}
@@ -872,6 +877,12 @@ function AutoDistributeModal({
             width={440}
           />
         </Field>
+
+        {jobType === 'vacuum_full' && (
+          <div className="rounded-lg border border-[var(--red)] bg-[rgba(248,81,73,0.07)] p-3 text-[12.5px] leading-relaxed text-[var(--red)]">
+            <strong>VACUUM FULL</strong> берёт исключительную блокировку и требует свободного места на диске. Распределять его на все БД в ночном окне не рекомендуется — во время выполнения таблицы будут недоступны. Используйте для разовой очистки конкретной БД.
+          </div>
+        )}
 
         <Field label="Период" description="Все базы распределяются равномерно">
           <div className="text-[13px] text-[var(--text)]">ежедневно с 23:00 до 08:00</div>
