@@ -7,10 +7,11 @@ import { formatBytes } from '../lib/format';
 import type { OverviewResult } from '../types';
 
 const tooltipStyle = {
-  background: 'var(--surface-elevated)',
-  border: '1px solid var(--border)',
+  background: 'var(--tooltip-bg)',
+  border: '1px solid var(--border-strong)',
   color: 'var(--text)',
   borderRadius: 8,
+  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
 };
 
 export default function Overview() {

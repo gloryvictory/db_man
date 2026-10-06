@@ -9,6 +9,7 @@
   --surface: #181c26;
   --surface-hover: #1e2330;
   --surface-elevated: #1b1e26;
+  --tooltip-bg: #262d3d;
   --border: #272c39;
   --border-strong: #333a4a;
   --text: #e7eaf0;
@@ -41,6 +42,7 @@
   --surface: #eef0f4;
   --surface-hover: #e4e7ed;
   --surface-elevated: #ffffff;
+  --tooltip-bg: #ffffff;
   --border: #e2e5eb;
   --border-strong: #ccd2db;
   --text: #1b1f27;
