@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { ChevronRight, Server, Database, Layers, Table, Pencil } from 'lucide-react';
+import { ChevronRight, Server, Database, Layers, Table, Eye, Pencil } from 'lucide-react';
 import { useStore, type TreeNode } from '../store';
 import { Loader } from './ui';
 import ObjectSearch from './ObjectSearch';
 import RenameDatabaseModal from './RenameDatabaseModal';
 
-function iconFor(kind: TreeNode['kind']) {
+function iconFor(kind: TreeNode['kind'], tableKind?: string) {
   switch (kind) {
     case 'conn':
       return <Server size={13} className="text-[var(--accent)]" />;
@@ -14,6 +14,7 @@ function iconFor(kind: TreeNode['kind']) {
     case 'schema':
       return <Layers size={13} className="text-[var(--amber)]" />;
     default:
+      if (tableKind === 'view') return <Eye size={13} className="text-[var(--violet)]" />;
       return <Table size={13} className="text-[var(--muted)]" />;
   }
 }
@@ -80,7 +81,7 @@ function NodeRow({
         >
           {hasChildren && (loading ? <Loader size={10} /> : <ChevronRight size={10} />)}
         </span>
-        <span className="flex w-4 shrink-0 justify-center">{iconFor(node.kind)}</span>
+        <span className="flex w-4 shrink-0 justify-center">{iconFor(node.kind, node.tableKind)}</span>
         <span className={`truncate ${node.kind === 'table' || node.kind === 'db' ? 'font-mono' : ''}`}>
           {node.label}
         </span>
