@@ -6,11 +6,12 @@ import {
   logMaintenanceRun,
   setMaintenanceJobRun,
   setMaintenanceJobLastRun,
+  saveDbSnapshot,
   type MaintenanceJob,
   type MaintenanceRun,
 } from './sqlite';
 import { storeSecrets } from './pools';
-import { vacuumDatabase, analyzeDatabase, vacuumAnalyzeDatabase, vacuumFullDatabase, reindexDatabase } from './db';
+import { vacuumDatabase, analyzeDatabase, vacuumAnalyzeDatabase, vacuumFullDatabase, reindexDatabase, getConnectionAnalysis } from './db';
 
 export function badRequest(msg: string): Error & { status: number } {
   const e = new Error(msg) as Error & { status: number };
@@ -76,10 +77,29 @@ async function executeJob(job: MaintenanceJob): Promise<{ status: 'ok' | 'error'
     else if (job.job_type === 'analyze') await analyzeDatabase(job.connection_id, job.database);
     else if (job.job_type === 'vacuum_analyze') await vacuumAnalyzeDatabase(job.connection_id, job.database);
     else if (job.job_type === 'vacuum_full') await vacuumFullDatabase(job.connection_id, job.database);
+    else if (job.job_type === 'collect_stats') await collectServerStats(job.connection_id);
     else await reindexDatabase(job.connection_id, job.database);
     return { status: 'ok', duration_ms: Date.now() - started, error: null };
   } catch (e) {
     return { status: 'error', duration_ms: Date.now() - started, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** Собрать и сохранить снимок статистики по всем БД подключения. */
+async function collectServerStats(connId: string): Promise<void> {
+  const rows = await getConnectionAnalysis(connId);
+  const takenAt = new Date().toISOString();
+  for (const r of rows) {
+    saveDbSnapshot({
+      connection_id: connId,
+      taken_at: takenAt,
+      database: r.database,
+      size_bytes: r.size_bytes,
+      table_count: r.table_count,
+      row_estimate: r.row_estimate,
+      dead_tuples: r.dead_tuples,
+      dead_ratio: r.dead_ratio,
+    });
   }
 }
 

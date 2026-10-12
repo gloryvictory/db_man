@@ -155,6 +155,18 @@ export function initDb(dbPath: string): DatabaseSync {
       error TEXT,
       detail TEXT
     );
+    CREATE TABLE IF NOT EXISTS db_snapshots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      connection_id TEXT NOT NULL,
+      taken_at TEXT NOT NULL,
+      database TEXT NOT NULL,
+      size_bytes INTEGER,
+      table_count INTEGER,
+      row_estimate INTEGER,
+      dead_tuples INTEGER,
+      dead_ratio REAL
+    );
+    CREATE INDEX IF NOT EXISTS idx_db_snapshots_conn_time ON db_snapshots (connection_id, taken_at);
   `);
 
   // миграции для существующих БД
@@ -496,7 +508,7 @@ export interface MaintenanceJob {
   id: string;
   connection_id: string;
   database: string;
-  job_type: 'vacuum' | 'analyze' | 'vacuum_analyze' | 'vacuum_full' | 'reindex';
+  job_type: 'vacuum' | 'analyze' | 'vacuum_analyze' | 'vacuum_full' | 'reindex' | 'collect_stats';
   schedule_type: 'daily' | 'weekly' | 'hours';
   schedule_value: string;
   enabled: boolean;
@@ -591,6 +603,42 @@ export function deleteMaintenanceJob(id: string): void {
 
 export function clearMaintenanceRuns(): void {
   db.prepare('DELETE FROM maintenance_runs').run();
+}
+
+// ---------- снимки статистики сервера ----------
+
+export interface DbSnapshot {
+  id: number;
+  connection_id: string;
+  taken_at: string;
+  database: string;
+  size_bytes: number;
+  table_count: number;
+  row_estimate: number;
+  dead_tuples: number;
+  dead_ratio: number;
+}
+
+export function saveDbSnapshot(s: Omit<DbSnapshot, 'id'>): void {
+  db.prepare(
+    `INSERT INTO db_snapshots (connection_id, taken_at, database, size_bytes, table_count, row_estimate, dead_tuples, dead_ratio)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(s.connection_id, s.taken_at, s.database, s.size_bytes, s.table_count, s.row_estimate, s.dead_tuples, s.dead_ratio);
+}
+
+export function listDbSnapshots(connectionId: string, limit: number, offset: number): DbSnapshot[] {
+  return db.prepare(
+    `SELECT * FROM db_snapshots WHERE connection_id = ? ORDER BY taken_at ASC, database ASC LIMIT ? OFFSET ?`
+  ).all(connectionId, limit, offset) as unknown as DbSnapshot[];
+}
+
+export function countDbSnapshots(connectionId: string): number {
+  const row = db.prepare('SELECT count(*) AS n FROM db_snapshots WHERE connection_id = ?').get(connectionId) as { n: number };
+  return Number(row.n);
+}
+
+export function clearDbSnapshots(): void {
+  db.prepare('DELETE FROM db_snapshots').run();
 }
 
 /** Пометить запуск: last_run_at + следующий запуск. */

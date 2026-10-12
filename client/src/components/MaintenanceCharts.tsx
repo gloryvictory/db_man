@@ -13,12 +13,14 @@ import {
   PieChart,
   Pie,
   Treemap,
+  LineChart,
+  Line,
 } from 'recharts';
 import { api } from '../api';
 import { useStore } from '../store';
 import { Loader, Select } from './ui';
 import { formatBytes } from '../lib/format';
-import type { ConnectionAnalysisRow, DatabaseTableRow, MaintenanceRun, ConnectionInfo } from '../types';
+import type { ConnectionAnalysisRow, DatabaseTableRow, MaintenanceRun, ConnectionInfo, DbSnapshot } from '../types';
 
 const tooltipStyle = {
   background: 'var(--tooltip-bg)',
@@ -52,6 +54,33 @@ const ROW_BUCKETS = [
   { label: '100К–1М', min: 100001, max: 1000000 },
   { label: '1М+', min: 1000001, max: Infinity },
 ];
+
+const SNAP_METRICS = [
+  { value: 'size', label: 'Размер' },
+  { value: 'dead', label: 'Мёртвые кортежи' },
+  { value: 'rows', label: 'Строки' },
+  { value: 'bloat', label: 'Bloat %' },
+] as const;
+
+type SnapMetric = (typeof SNAP_METRICS)[number]['value'];
+
+function snapMetricValue(s: DbSnapshot, m: SnapMetric): number {
+  switch (m) {
+    case 'dead':
+      return s.dead_tuples;
+    case 'rows':
+      return s.row_estimate;
+    case 'bloat':
+      return +(s.dead_ratio * 100).toFixed(1);
+    default:
+      return s.size_bytes;
+  }
+}
+
+function formatSnapTime(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
 
 function bloatColor(ratio: number): string {
   if (ratio * 100 > BLOAT_THRESHOLD) return 'var(--red)';
@@ -99,6 +128,8 @@ export default function MaintenanceCharts() {
   const [tables, setTables] = useState<DatabaseTableRow[] | null>(null);
   const [runs, setRuns] = useState<MaintenanceRun[] | null>(null);
   const [loadingTables, setLoadingTables] = useState(false);
+  const [snapshots, setSnapshots] = useState<DbSnapshot[] | null>(null);
+  const [snapMetric, setSnapMetric] = useState<SnapMetric>('size');
 
   useEffect(() => {
     if (!connId && connections.length) setConnId(connections[0].id);
@@ -110,6 +141,21 @@ export default function MaintenanceCharts() {
       .then((r) => setRuns(r.rows))
       .catch(() => setRuns([]));
   }, []);
+
+  useEffect(() => {
+    if (!connId) {
+      setSnapshots(null);
+      return;
+    }
+    let on = true;
+    api
+      .dbSnapshots(connId, 5000, 0)
+      .then((r) => on && setSnapshots(r.rows))
+      .catch(() => on && setSnapshots([]));
+    return () => {
+      on = false;
+    };
+  }, [connId]);
 
   useEffect(() => {
     if (!connId) {
@@ -207,6 +253,20 @@ export default function MaintenanceCharts() {
       })),
     [tables],
   );
+
+  const snapChart = useMemo(() => {
+    if (!snapshots || snapshots.length === 0) return null;
+    const times = Array.from(new Set(snapshots.map((s) => s.taken_at))).sort();
+    const dbs = Array.from(new Set(snapshots.map((s) => s.database))).sort();
+    const data = times.map((t) => {
+      const row: Record<string, string | number> = { time: formatSnapTime(t) };
+      for (const s of snapshots) {
+        if (s.taken_at === t) row[s.database] = snapMetricValue(s, snapMetric);
+      }
+      return row;
+    });
+    return { dbs, data };
+  }, [snapshots, snapMetric]);
 
   const connOptions = connections.map((c) => ({ value: c.id, label: `${c.host}@${c.username}` }));
   const dbOptions = dbs.map((d) => ({ value: d, label: d }));
@@ -383,6 +443,50 @@ export default function MaintenanceCharts() {
                 <Bar dataKey="error" name="ошибка" stackId="s" fill="var(--red)" />
                 <Bar dataKey="skipped" name="пропущено" stackId="s" fill="var(--amber)" />
               </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-4">
+        <div className="mb-2 flex items-center gap-3">
+          <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Динамика состояния (снимки)</h2>
+          <Select
+            value={snapMetric}
+            onChange={(v) => v && setSnapMetric(v as SnapMetric)}
+            options={SNAP_METRICS.map((m) => ({ value: m.value, label: m.label }))}
+            width={180}
+          />
+        </div>
+        {snapshots === null ? (
+          <div className="grid place-items-center py-10">
+            <Loader />
+          </div>
+        ) : !snapChart || snapChart.data.length === 0 ? (
+          <div className="py-6 text-[12px] text-[var(--faint)]">
+            Снимков ещё нет. Добавьте задание «СБОР СТАТИСТИКИ» на вкладке «Обслуживание».
+          </div>
+        ) : (
+          <div className="h-[360px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={snapChart.data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+                <CartesianGrid stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="time" stroke="var(--faint)" tick={{ fill: 'var(--muted)', fontSize: 11, fontFamily: 'monospace' }} />
+                <YAxis
+                  stroke="var(--faint)"
+                  tick={{ fill: 'var(--muted)', fontSize: 11 }}
+                  tickFormatter={(v) => (snapMetric === 'size' ? formatBytes(Number(v)) : snapMetric === 'bloat' ? `${v}%` : Number(v).toLocaleString('ru-RU'))}
+                  width={90}
+                />
+                <Tooltip
+                  contentStyle={tooltipStyle}
+                  formatter={(v) => (snapMetric === 'size' ? formatBytes(Number(v)) : snapMetric === 'bloat' ? `${v}%` : Number(v).toLocaleString('ru-RU'))}
+                />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                {snapChart.dbs.map((d, i) => (
+                  <Line key={d} type="monotone" dataKey={d} stroke={PIE_COLORS[i % PIE_COLORS.length]} dot={false} strokeWidth={1.5} />
+                ))}
+              </LineChart>
             </ResponsiveContainer>
           </div>
         )}

@@ -7,9 +7,10 @@ import { Button, Loader, Tabs, Modal, Field, Input, Select, Info } from './ui';
 import { exportToExcel, exportToCsv } from '../lib/export';
 import { formatDateRel } from '../lib/format';
 import MaintenanceCharts from './MaintenanceCharts';
+import SnapshotsReport from './SnapshotsReport';
 import type { MaintenanceJob, MaintenanceRun, MaintenanceStats } from '../types';
 
-const JOB_TYPE_LABEL: Record<string, string> = { vacuum: 'VACUUM', analyze: 'ANALYZE', vacuum_analyze: 'VACUUM ANALYZE', vacuum_full: 'VACUUM FULL', reindex: 'REINDEX' };
+const JOB_TYPE_LABEL: Record<string, string> = { vacuum: 'VACUUM', analyze: 'ANALYZE', vacuum_analyze: 'VACUUM ANALYZE', vacuum_full: 'VACUUM FULL', reindex: 'REINDEX', collect_stats: 'СБОР СТАТИСТИКИ' };
 const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
 type JobSortKey = 'conn' | 'db' | 'type' | 'schedule' | 'last' | 'next';
@@ -109,7 +110,7 @@ function jobToForm(j: MaintenanceJob): FormState {
 
 export default function MaintenanceView() {
   const store = useStore();
-  const [tab, setTab] = useState<'jobs' | 'history' | 'stats' | 'charts'>('jobs');
+  const [tab, setTab] = useState<'jobs' | 'history' | 'stats' | 'charts' | 'snapshots'>('jobs');
   const [jobs, setJobs] = useState<MaintenanceJob[] | null>(null);
   const [runs, setRuns] = useState<MaintenanceRun[] | null>(null);
   const [stats, setStats] = useState<MaintenanceStats | null>(null);
@@ -360,12 +361,13 @@ export default function MaintenanceView() {
         <div className="ml-4">
           <Tabs
             value={tab}
-            onChange={(v) => setTab(v as 'jobs' | 'history' | 'stats' | 'charts')}
+            onChange={(v) => setTab(v as 'jobs' | 'history' | 'stats' | 'charts' | 'snapshots')}
             items={[
               { value: 'jobs', label: 'Задания' },
               { value: 'history', label: 'История' },
               { value: 'stats', label: 'Отчёты' },
               { value: 'charts', label: 'Графики' },
+              { value: 'snapshots', label: 'Статистика' },
             ]}
           />
         </div>
@@ -542,6 +544,8 @@ export default function MaintenanceView() {
         </div>
       ) : tab === 'charts' ? (
         <MaintenanceCharts />
+      ) : tab === 'snapshots' ? (
+        <SnapshotsReport />
       ) : (
         <div>
           <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -706,9 +710,11 @@ function JobFormModal({
         </Field>
         <Field
           label="База данных"
-          description={databases && databases.length === 0 ? 'Подключение не установлено — введите имя вручную' : 'База, к которой применить операцию'}
+          description={f.job_type === 'collect_stats' ? 'Статистика собирается по всем БД подключения' : databases && databases.length === 0 ? 'Подключение не установлено — введите имя вручную' : 'База, к которой применить операцию'}
         >
-          {databases && databases.length > 0 ? (
+          {f.job_type === 'collect_stats' ? (
+            <div className="text-[13px] text-[var(--text)]">Все БД подключения</div>
+          ) : databases && databases.length > 0 ? (
             <Select
               value={f.database || null}
               onChange={(v) => v && setF((s) => ({ ...s, database: v }))}
@@ -724,13 +730,14 @@ function JobFormModal({
         <Field label="Операция">
           <Select
             value={f.job_type}
-            onChange={(v) => v && setF((s) => ({ ...s, job_type: v }))}
+            onChange={(v) => v && setF((s) => ({ ...s, job_type: v, database: v === 'collect_stats' ? '*' : s.database === '*' ? '' : s.database }))}
             options={[
               { value: 'vacuum', label: 'VACUUM' },
               { value: 'analyze', label: 'ANALYZE' },
               { value: 'vacuum_analyze', label: 'VACUUM ANALYZE' },
               { value: 'reindex', label: 'REINDEX' },
               { value: 'vacuum_full', label: 'VACUUM FULL' },
+              { value: 'collect_stats', label: 'СБОР СТАТИСТИКИ' },
             ]}
             width={380}
           />
@@ -975,6 +982,7 @@ function DeleteByTypeModal({
               { value: 'vacuum_analyze', label: 'VACUUM ANALYZE' },
               { value: 'reindex', label: 'REINDEX' },
               { value: 'vacuum_full', label: 'VACUUM FULL' },
+              { value: 'collect_stats', label: 'СБОР СТАТИСТИКИ' },
             ]}
             width={400}
           />

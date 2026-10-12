@@ -1,4 +1,4 @@
-import type { StoredConnection, User, TableMeta, ColumnMeta, ColumnRow, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow, TablespaceRow, SessionRow, LockRow, SlowQueriesResult, QueryResult, AuditResult, LoginStats, SearchResult, DataQualityResult, MaintenanceJob, MaintenanceRun, MaintenanceRunsResult, MaintenanceStats, MaintenanceRunResult, AdminExport, AdminImportResult, ConnectionInfo, ConnectionAnalysisRow, DbMeta, SchemaMeta } from './types';
+import type { StoredConnection, User, TableMeta, ColumnMeta, ColumnRow, RowsResult, StatsRow, LogsResult, ServiceResult, DatabaseInfo, DatabaseStats, SchemaInfo, SchemaTableRow, DatabaseTableRow, SchemaStats, OverviewResult, ServerConfigRow, TablespaceRow, SessionRow, LockRow, SlowQueriesResult, QueryResult, AuditResult, LoginStats, SearchResult, DataQualityResult, MaintenanceJob, MaintenanceRun, MaintenanceRunsResult, DbSnapshotsResult, MaintenanceStats, MaintenanceRunResult, AdminExport, AdminImportResult, ConnectionInfo, ConnectionAnalysisRow, DbMeta, SchemaMeta } from './types';
 
 const BASE_URL = (import.meta.env.BASE_URL ?? '/').replace(/\/+$/, ''); // '' (корень) или '/db_man'
 const BASE = BASE_URL + '/api';
@@ -181,6 +181,8 @@ export const api = {
     http<MaintenanceRunsResult>(`/maintenance/runs` + qs(p as Record<string, string | number | undefined>)),
   maintenanceStats: () => http<MaintenanceStats>('/maintenance/stats'),
   clearMaintenanceRuns: () => http<{ ok: boolean }>('/maintenance/runs', { method: 'DELETE' }),
+  dbSnapshots: (connectionId: string, limit: number, offset: number) =>
+    http<DbSnapshotsResult>(`/maintenance/snapshots?connection_id=${enc(connectionId)}&limit=${limit}&offset=${offset}`),
   auditExportUrl: (format: 'xlsx' | 'csv') => `${BASE}/audit/export?format=${format}`,
   exportUrl: (id: string, db: string, schema: string, table: string, format: 'xlsx' | 'csv' | 'sql') =>
     `${BASE}/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables/${enc(table)}/export?format=${format}`,

@@ -12,13 +12,15 @@ import {
   countMaintenanceRuns,
   getMaintenanceStats,
   clearMaintenanceRuns,
+  listDbSnapshots,
+  countDbSnapshots,
   getConnection,
 } from '../sqlite';
 import { computeNextRun, validateSchedule, runMaintenanceJob, badRequest } from '../maintenance';
 
 const r = Router();
 
-const JOB_TYPES = ['vacuum', 'analyze', 'vacuum_analyze', 'vacuum_full', 'reindex'];
+const JOB_TYPES = ['vacuum', 'analyze', 'vacuum_analyze', 'vacuum_full', 'reindex', 'collect_stats'];
 const SCHEDULE_TYPES = ['daily', 'weekly', 'hours'];
 
 function ensureOwnership(req: Request, connectionId: string): void {
@@ -34,7 +36,7 @@ function ensureOwnership(req: Request, connectionId: string): void {
 function parseJobBody(req: Request): {
   connection_id: string;
   database: string;
-  job_type: 'vacuum' | 'analyze' | 'vacuum_analyze' | 'vacuum_full' | 'reindex';
+  job_type: 'vacuum' | 'analyze' | 'vacuum_analyze' | 'vacuum_full' | 'reindex' | 'collect_stats';
   schedule_type: 'daily' | 'weekly' | 'hours';
   schedule_value: string;
   enabled: boolean;
@@ -55,7 +57,7 @@ function parseJobBody(req: Request): {
   return {
     connection_id,
     database,
-    job_type: job_type as 'vacuum' | 'analyze' | 'vacuum_analyze' | 'vacuum_full' | 'reindex',
+    job_type: job_type as 'vacuum' | 'analyze' | 'vacuum_analyze' | 'vacuum_full' | 'reindex' | 'collect_stats',
     schedule_type: schedule_type as 'daily' | 'weekly' | 'hours',
     schedule_value,
     enabled: b.enabled !== false,
@@ -87,6 +89,20 @@ r.get('/stats', (req, res) => {
   res.json(getMaintenanceStats(req.user!.id, isAdmin));
 });
 
+r.get('/snapshots', (req, res, next) => {
+  try {
+    const q = req.query as Record<string, string>;
+    const connectionId = String(q.connection_id ?? '');
+    if (!connectionId) return res.status(400).json({ error: 'Укажите подключение' });
+    ensureOwnership(req, connectionId);
+    const limit = Math.min(parseInt(q.limit, 10) || 1000, 5000);
+    const offset = Math.max(parseInt(q.offset, 10) || 0, 0);
+    res.json({ rows: listDbSnapshots(connectionId, limit, offset), total: countDbSnapshots(connectionId), limit, offset });
+  } catch (e) {
+    next(e);
+  }
+});
+
 r.post('/', (req, res, next) => {
   try {
     const d = parseJobBody(req);
@@ -114,7 +130,7 @@ r.put('/:id', (req, res, next) => {
     validateSchedule(schedule_type, schedule_value);
     const updated = updateMaintenanceJob(req.params.id, {
       database,
-      job_type: job_type as 'vacuum' | 'analyze' | 'vacuum_analyze' | 'vacuum_full' | 'reindex',
+      job_type: job_type as 'vacuum' | 'analyze' | 'vacuum_analyze' | 'vacuum_full' | 'reindex' | 'collect_stats',
       schedule_type: schedule_type as 'daily' | 'weekly' | 'hours',
       schedule_value,
       enabled: b.enabled !== undefined ? Boolean(b.enabled) : job.enabled,

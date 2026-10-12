@@ -469,6 +469,25 @@ export interface MaintenanceRunsResult {
   offset: number;
 }
 
+export interface DbSnapshot {
+  id: number;
+  connection_id: string;
+  taken_at: string;
+  database: string;
+  size_bytes: number;
+  table_count: number;
+  row_estimate: number;
+  dead_tuples: number;
+  dead_ratio: number;
+}
+
+export interface DbSnapshotsResult {
+  rows: DbSnapshot[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export interface MaintenanceJobStat {
   job_id: string;
   job_type: string;
