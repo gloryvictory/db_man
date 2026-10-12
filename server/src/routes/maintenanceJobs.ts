@@ -11,6 +11,7 @@ import {
   listMaintenanceRuns,
   countMaintenanceRuns,
   getMaintenanceStats,
+  clearMaintenanceRuns,
   getConnection,
 } from '../sqlite';
 import { computeNextRun, validateSchedule, runMaintenanceJob, badRequest } from '../maintenance';
@@ -127,6 +128,12 @@ r.put('/:id', (req, res, next) => {
   } catch (e) {
     next(e);
   }
+});
+
+r.delete('/runs', (req, res) => {
+  if (req.user!.role !== 'admin') return res.status(403).json({ error: 'Только администратор' });
+  clearMaintenanceRuns();
+  res.json({ ok: true });
 });
 
 r.delete('/:id', (req, res, next) => {

@@ -145,6 +145,9 @@ export function initDb(dbPath: string): DatabaseSync {
     CREATE TABLE IF NOT EXISTS maintenance_runs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       job_id TEXT NOT NULL,
+      connection_id TEXT,
+      database TEXT,
+      job_type TEXT,
       started_at TEXT NOT NULL,
       finished_at TEXT,
       status TEXT NOT NULL,
@@ -162,6 +165,15 @@ export function initDb(dbPath: string): DatabaseSync {
   ensureColumn('query_log', 'user_id', 'TEXT');
   ensureColumn('connections', 'user_id', 'TEXT');
   ensureColumn('audit_log', 'user_id', 'TEXT');
+  ensureColumn('maintenance_runs', 'connection_id', 'TEXT');
+  ensureColumn('maintenance_runs', 'database', 'TEXT');
+  ensureColumn('maintenance_runs', 'job_type', 'TEXT');
+  // бэкфилл: заполнить денормализованные поля из ещё существующих заданий
+  db.exec(`UPDATE maintenance_runs SET
+    connection_id = (SELECT connection_id FROM maintenance_jobs j WHERE j.id = maintenance_runs.job_id),
+    database = (SELECT database FROM maintenance_jobs j WHERE j.id = maintenance_runs.job_id),
+    job_type = (SELECT job_type FROM maintenance_jobs j WHERE j.id = maintenance_runs.job_id)
+    WHERE connection_id IS NULL`);
 
   seedAdmin();
 
@@ -497,6 +509,9 @@ export interface MaintenanceJob {
 export interface MaintenanceRun {
   id: number;
   job_id: string;
+  connection_id: string | null;
+  database: string | null;
+  job_type: string | null;
   started_at: string;
   finished_at: string | null;
   status: 'ok' | 'error' | 'skipped';
@@ -572,7 +587,10 @@ export function setMaintenanceJobEnabled(id: string, enabled: boolean): void {
 
 export function deleteMaintenanceJob(id: string): void {
   db.prepare('DELETE FROM maintenance_jobs WHERE id = ?').run(id);
-  db.prepare('DELETE FROM maintenance_runs WHERE job_id = ?').run(id);
+}
+
+export function clearMaintenanceRuns(): void {
+  db.prepare('DELETE FROM maintenance_runs').run();
 }
 
 /** Пометить запуск: last_run_at + следующий запуск. */
@@ -595,9 +613,9 @@ export function getDueJobs(nowIso: string): MaintenanceJob[] {
 
 export function logMaintenanceRun(run: Omit<MaintenanceRun, 'id'>): void {
   db.prepare(
-    `INSERT INTO maintenance_runs (job_id, started_at, finished_at, status, duration_ms, error, detail)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(run.job_id, run.started_at, run.finished_at, run.status, run.duration_ms, run.error, run.detail);
+    `INSERT INTO maintenance_runs (job_id, connection_id, database, job_type, started_at, finished_at, status, duration_ms, error, detail)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(run.job_id, run.connection_id, run.database, run.job_type, run.started_at, run.finished_at, run.status, run.duration_ms, run.error, run.detail);
 }
 
 export function listMaintenanceRuns(
@@ -610,7 +628,7 @@ export function listMaintenanceRuns(
   let where = '';
   const params: (string | number)[] = [];
   if (!isAdmin) {
-    where = 'WHERE r.job_id IN (SELECT j.id FROM maintenance_jobs j JOIN connections c ON c.id = j.connection_id WHERE c.user_id = ?)';
+    where = 'WHERE r.connection_id IN (SELECT id FROM connections WHERE user_id = ?)';
     params.push(userId);
   }
   if (jobId) {
@@ -625,7 +643,7 @@ export function countMaintenanceRuns(jobId: string | undefined, userId: string, 
   let where = '';
   const params: (string | number)[] = [];
   if (!isAdmin) {
-    where = 'WHERE r.job_id IN (SELECT j.id FROM maintenance_jobs j JOIN connections c ON c.id = j.connection_id WHERE c.user_id = ?)';
+    where = 'WHERE r.connection_id IN (SELECT id FROM connections WHERE user_id = ?)';
     params.push(userId);
   }
   if (jobId) {
@@ -656,7 +674,7 @@ export interface MaintenanceStats {
 }
 
 export function getMaintenanceStats(userId: string, isAdmin: boolean): MaintenanceStats {
-  const scope = isAdmin ? '' : 'WHERE c.user_id = ?';
+  const scope = isAdmin ? '' : 'WHERE r.connection_id IN (SELECT id FROM connections WHERE user_id = ?)';
   const scopeParams = isAdmin ? [] : [userId];
 
   const total = db
@@ -666,26 +684,24 @@ export function getMaintenanceStats(userId: string, isAdmin: boolean): Maintenan
               COALESCE(SUM(CASE WHEN r.status = 'error' THEN 1 ELSE 0 END), 0) AS err,
               AVG(r.duration_ms) AS avg
        FROM maintenance_runs r
-       JOIN maintenance_jobs j ON j.id = r.job_id
-       JOIN connections c ON c.id = j.connection_id
        ${scope}`
     )
     .get(...scopeParams) as { n: number; ok: number; err: number; avg: number | null };
 
   const byJob = db
     .prepare(
-      `SELECT j.id AS job_id, j.job_type, j.database,
+      `SELECT r.job_id AS job_id,
+              MAX(r.job_type) AS job_type,
+              MAX(r.database) AS database,
               COUNT(r.id) AS runs,
               COALESCE(SUM(CASE WHEN r.status = 'ok' THEN 1 ELSE 0 END), 0) AS ok,
               COALESCE(SUM(CASE WHEN r.status = 'error' THEN 1 ELSE 0 END), 0) AS error,
               MAX(CASE WHEN r.status = 'ok' THEN r.finished_at END) AS last_run,
               AVG(r.duration_ms) AS avg_duration_ms
-       FROM maintenance_jobs j
-       LEFT JOIN maintenance_runs r ON r.job_id = j.id
-       JOIN connections c ON c.id = j.connection_id
+       FROM maintenance_runs r
        ${scope}
-       GROUP BY j.id
-       ORDER BY runs DESC, j.database`
+       GROUP BY r.job_id
+       ORDER BY runs DESC, database`
     )
     .all(...scopeParams) as unknown as MaintenanceJobStat[];
 

@@ -180,6 +180,7 @@ export const api = {
   maintenanceRuns: (p?: { jobId?: string; limit?: number; offset?: number }) =>
     http<MaintenanceRunsResult>(`/maintenance/runs` + qs(p as Record<string, string | number | undefined>)),
   maintenanceStats: () => http<MaintenanceStats>('/maintenance/stats'),
+  clearMaintenanceRuns: () => http<{ ok: boolean }>('/maintenance/runs', { method: 'DELETE' }),
   auditExportUrl: (format: 'xlsx' | 'csv') => `${BASE}/audit/export?format=${format}`,
   exportUrl: (id: string, db: string, schema: string, table: string, format: 'xlsx' | 'csv' | 'sql') =>
     `${BASE}/connections/${id}/databases/${enc(db)}/schemas/${enc(schema)}/tables/${enc(table)}/export?format=${format}`,

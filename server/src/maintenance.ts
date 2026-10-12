@@ -104,6 +104,9 @@ export async function runMaintenanceJob(
     const finishedIso = new Date().toISOString();
     logMaintenanceRun({
       job_id: job.id,
+      connection_id: job.connection_id,
+      database: job.database,
+      job_type: job.job_type,
       started_at: startedIso,
       finished_at: finishedIso,
       status: res.status,
@@ -136,6 +139,9 @@ async function tick(): Promise<void> {
       const next = computeNextRun(job.schedule_type, job.schedule_value, now);
       logMaintenanceRun({
         job_id: job.id,
+        connection_id: job.connection_id,
+        database: job.database,
+        job_type: job.job_type,
         started_at: job.next_run_at!,
         finished_at: nowIso,
         status: 'skipped',

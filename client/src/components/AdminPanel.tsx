@@ -98,6 +98,16 @@ function GeneralSection() {
     }
   }
 
+  async function clearMaintenance() {
+    if (!window.confirm('Очистить всю статистику обслуживания (историю запусков)? Это действие необратимо.')) return;
+    try {
+      await api.clearMaintenanceRuns();
+      toast.success('Статистика обслуживания очищена');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Не удалось очистить статистику');
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <section>
@@ -127,6 +137,21 @@ function GeneralSection() {
           </div>
           <div className="text-[11px] text-[var(--faint)]">
             Экспорт включает пользователей, подключения, сохранённые пароли и задания обслуживания. Пароли хранятся в файле в открытом виде.
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Обслуживание</h2>
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-3">
+          <div className="mb-2 flex items-center gap-2">
+            <Button size="xs" variant="subtle" onClick={clearMaintenance} style={{ color: 'var(--red)' }}>
+              <Trash2 size={12} />
+              Очистить статистику обслуживания
+            </Button>
+          </div>
+          <div className="text-[11px] text-[var(--faint)]">
+            Удаляет историю запусков (статистику) без удаления самих заданий. Удаление заданий на вкладке «Обслуживание» статистику не трогает.
           </div>
         </div>
       </section>
